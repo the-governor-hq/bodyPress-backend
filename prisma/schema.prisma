@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id          String              @id @default(cuid())
+  email       String?             @unique
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  connections WearableConnection[]
+}
+
+model WearableConnection {
+  id             String   @id @default(cuid())
+  userId         String
+  provider       String
+  providerUserId String?
+  status         String   @default("active")
+  connectedAt    DateTime @default(now())
+  lastSyncedAt   DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([provider, status])
+  @@map("wearable_connections")
+}
+
+model WearableToken {
+  userId       String
+  provider     String
+  accessToken  String
+  refreshToken String?
+  expiresAt    DateTime
+  scope        String?
+  tokenType    String   @default("Bearer")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@id([userId, provider])
+  @@index([userId])
+  @@map("wearable_tokens")
+}
+
+model WearableRawIngest {
+  id           String   @id @default(cuid())
+  userId       String
+  provider     String
+  dataType     String
+  sourceId     String
+  observedDate String?
+  payload      Json
+  fetchedAt    DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  @@unique([userId, provider, dataType, sourceId], name: "uniq_ingest_source")
+  @@index([userId, provider, dataType])
+  @@map("wearable_raw_ingests")
+}
+
+model WearableActivity {
+  id               String   @id @default(cuid())
+  userId           String
+  provider         String
+  externalId       String
+  type             String
+  startTime        DateTime
+  endTime          DateTime
+  durationSeconds  Int
+  calories         Int?
+  distanceMeters   Float?
+  steps            Int?
+  averageHeartRate Int?
+  maxHeartRate     Int?
+  source           String?
+  raw              Json
+  syncedAt         DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([userId, provider, externalId], name: "uniq_activity_external")
+  @@index([userId, provider, startTime])
+  @@map("wearable_activities")
+}
+
+model WearableSleep {
+  id               String   @id @default(cuid())
+  userId           String
+  provider         String
+  externalId       String
+  date             String
+  startTime        DateTime
+  endTime          DateTime
+  durationSeconds  Int
+  deepSleepSeconds Int?
+  lightSleepSeconds Int?
+  remSleepSeconds  Int?
+  awakeSeconds     Int?
+  sleepScore       Int?
+  stages           Json?
+  raw              Json
+  syncedAt         DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([userId, provider, externalId], name: "uniq_sleep_external")
+  @@index([userId, provider, date])
+  @@map("wearable_sleep")
+}
+
+model WearableDaily {
+  id               String   @id @default(cuid())
+  userId           String
+  provider         String
+  date             String
+  externalId       String
+  steps            Int?
+  calories         Int?
+  distanceMeters   Float?
+  activeMinutes    Int?
+  restingHeartRate Int?
+  averageHeartRate Int?
+  maxHeartRate     Int?
+  stressLevel      Int?
+  floorsClimbed    Int?
+  raw              Json
+  syncedAt         DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([userId, provider, date], name: "uniq_daily_date")
+  @@index([userId, provider, date])
+  @@map("wearable_dailies")
+}
