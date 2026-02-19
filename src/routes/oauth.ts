@@ -1,10 +1,13 @@
 import { Router } from "express";
 import { z } from "zod";
+import passport from "passport";
+import { verify as jwtVerify } from "jsonwebtoken";
 import { requireAuth } from "../auth/passport.js";
 import { prisma } from "../db/prisma.js";
 import { wearableSdk } from "../integrations/wearable-sdk.js";
 import { JOBS, getBoss } from "../jobs/queue.js";
 import { parseProvider } from "../lib/provider.js";
+import { env } from "../config/env.js";
 
 const callbackQuerySchema = z.object({
   code: z.string().min(1),
@@ -13,7 +16,27 @@ const callbackQuerySchema = z.object({
 
 export const oauthRouter = Router();
 
-oauthRouter.get("/:provider/connect", requireAuth, async (req, res, next) => {
+/**
+ * Allow the frontend to pass the JWT as `?auth_token=...` for browser redirects
+ * (standard Authorization header doesn't survive full-page redirects).
+ */
+function requireAuthOrToken(req: any, res: any, next: any) {
+  const queryToken = req.query?.auth_token as string | undefined;
+  if (queryToken) {
+    try {
+      const secret = env.JWT_PUBLIC_KEY ?? env.JWT_SECRET ?? "";
+      const algorithms: any[] = env.JWT_PUBLIC_KEY ? ["RS256"] : ["HS256"];
+      const payload = jwtVerify(queryToken, secret, { algorithms }) as any;
+      req.user = { id: payload.sub, email: payload.email ?? null };
+      return next();
+    } catch {
+      return res.status(401).json({ error: "Invalid auth_token" });
+    }
+  }
+  return requireAuth(req, res, next);
+}
+
+oauthRouter.get("/:provider/connect", requireAuthOrToken, async (req, res, next) => {
   try {
     const provider = parseProvider(req.params.provider);
     const userId = req.user?.id;
@@ -82,13 +105,10 @@ oauthRouter.get("/:provider/callback", async (req, res, next) => {
       daysBack: 60,
     });
 
-    return res.status(200).json({
-      message: `Connected to ${provider}`,
-      provider,
-      userId: result.userId,
-      providerUserId: result.providerUserId,
-      initialBackfillQueued: true,
-    });
+    // Redirect to frontend onboarding success or dashboard
+    const redirectUrl = new URL("/onboarding", env.FRONTEND_URL);
+    redirectUrl.searchParams.set("connected", provider);
+    return res.redirect(redirectUrl.toString());
   } catch (error) {
     return next(error);
   }
