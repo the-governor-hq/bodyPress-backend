@@ -3,5 +3,6 @@
     {
       "text": "Follow the Governor HQ Constitutional Framework in node_modules/@the-governor-hq/constitution-wearables for wearable health data safety constraints. Check hard-rules.mdx before generating health-related code."
     }
-  ]
+  ],
+  "prisma.pinToPrisma6": true
 }

@@ -20,6 +20,7 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^7.4.1",
     "@prisma/client": "^7.4.0",
     "@the-governor-hq/constitution-core": "^3.3.4",
     "@the-governor-hq/wearable-sdk": "^0.1.0",
@@ -30,6 +31,7 @@
     "jsonwebtoken": "^9.0.3",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
+    "pg": "^8.18.0",
     "pg-boss": "^10.1.6",
     "pino": "^9.11.0",
     "pino-http": "^10.5.0",
@@ -42,6 +44,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.17.2",
     "@types/passport-jwt": "^4.0.1",
+    "@types/pg": "^8.16.0",
     "prisma": "^7.4.0",
     "tsx": "^4.20.6",
     "typescript": "^5.9.2"
