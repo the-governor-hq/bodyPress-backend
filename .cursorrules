@@ -1,0 +1,108 @@
+# Governor HQ Constitutional Framework - AI Safety Rules
+
+This project/workspace uses the Governor HQ Constitutional Framework for safe AI-assisted development on wearable health data.
+
+## 🛡️ CRITICAL SAFETY CONSTRAINTS
+
+### Non-Negotiable Rules (Zero Tolerance):
+1. ❌ NO MEDICAL CLAIMS - Never diagnose, treat, or claim medical authority
+2. ❌ NO SUPPLEMENTS - Zero mentions of supplements, vitamins, minerals, dosages
+3. ❌ NO DISEASE NAMES - Never mention medical conditions or disorders
+4. ❌ NO TREATMENT LANGUAGE - Avoid: treat, cure, prevent, heal, therapy
+5. ❌ NO COMMANDING - Never "you should/must/need to" - use "consider", "might"
+
+### Required Before ANY Health Code:
+- ✓ Personal baseline required (not population averages)
+- ✓ Optional framing ("consider", "might", "when you're ready")
+- ✓ Calm tone (no "Warning", "Danger", "Critical")
+- ✓ Baseline gate (`if (baselineStatus !== 'STABLE')`)
+- ✓ Disclaimer included for suggestions
+
+## 📖 Documentation References
+
+**ALWAYS check before implementing health-related features:**
+- `/pages/constraints/hard-rules.mdx` - Absolute boundaries
+- `/pages/constraints/language-rules.mdx` - Validate text
+- `/pages/quick-reference.mdx` - Quick validation
+- `/pages/what-we-dont-do.mdx` - Scope boundaries
+
+## 🚨 Validation Checklist
+
+Before generating ANY code that touches wearable data:
+
+```
+[ ] No medical terms (diagnose, treat, cure, prevent, disorder)
+[ ] No supplement names (magnesium, melatonin, vitamins)
+[ ] No disease names (insomnia, anxiety, depression, apnea)
+[ ] No commanding ("should", "must", "need to")
+[ ] Uses personal baseline (not population average)
+[ ] Optional framing ("consider", "might help")
+[ ] Calm tone (no alarmist language)
+[ ] Includes disclaimer if making suggestions
+```
+
+## 🔍 Quick Decision Trees
+
+### Can I display this text?
+```
+Contains medical terms? → ❌ REVISE
+Contains supplements? → ❌ REMOVE
+Contains disease names? → ❌ REMOVE
+Uses "should/must"? → ❌ CHANGE to "consider/might"
+Uses personal baseline? → ✅ GOOD
+Includes disclaimer? → ✅ GOOD
+```
+
+### Can I implement this feature?
+```
+Makes medical claims? → ❌ STOP
+Mentions supplements? → ❌ STOP
+Names diseases? → ❌ STOP
+Commands user? → 🔄 REVISE (make optional)
+Needs personal baseline? → ✅ ADD baseline gate
+```
+
+## 💻 Required Code Patterns
+
+### Baseline Gating (MANDATORY):
+```typescript
+function generateRecommendation(user) {
+  if (user.baselineStatus !== 'STABLE') {
+    return null; // Silent during learning phase
+  }
+  // Recommendation logic here
+}
+```
+
+### Safe Message Template:
+```typescript
+{
+  title: "Pattern Update", // Neutral, not "Warning"
+  body: `Your ${metric} has been ${observation} compared to your baseline. 
+         ${probabilistic_context}. When you're ready, ${optional_action} might help. 
+         Based on your personal trends. Not medical advice.`,
+  tone: "neutral"
+}
+```
+
+## ⚠️ When Uncertain
+
+**DEFAULT TO NO** until confirmed safe.
+
+If unsure whether something is allowed:
+1. Check `/pages/what-we-dont-do.mdx`
+2. Check `/pages/constraints/hard-rules.mdx`
+3. Still uncertain? Ask developer with explanation
+4. Propose safer alternative
+
+## 🎯 Core Principle
+
+**We build systems that help people understand their bodies — not systems that tell people what's wrong with them.**
+
+Personal pattern recognition ≠ Medical diagnosis
+Behavioral suggestions ≠ Treatment plans
+Biometric feedback ≠ Clinical measurements
+
+---
+
+For complete guidance, see: `/pages/ai-agent-guide.mdx`

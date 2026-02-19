@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:push": "prisma db push"
+    "prisma:push": "prisma db push",
+    "ai:context": "node ./node_modules/@the-governor-hq/constitution-wearables/dist/mcp-server.js"
   },
   "engines": {
     "node": ">=20"
@@ -34,7 +35,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@the-governor-hq/constitution-wearables": "^3.3.4",
+    "@the-governor-hq/constitution-wearables": "^3.3.5",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/node": "^22.17.2",
