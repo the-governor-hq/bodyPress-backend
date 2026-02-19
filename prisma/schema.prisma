@@ -7,11 +7,34 @@ datasource db {
 }
 
 model User {
-  id          String              @id @default(cuid())
-  email       String?             @unique
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  connections WearableConnection[]
+  id                String              @id @default(cuid())
+  email             String?             @unique
+  name              String?
+  timezone          String?             @default("UTC")
+  goals             String[]
+  newsletterOptIn   Boolean             @default(false)
+  subscribedAt      DateTime?
+  notifyAt          String?             @default("07:00") // HH:mm local time
+  onboardingDone    Boolean             @default(false)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  connections       WearableConnection[]
+  magicLinks        MagicLink[]
+}
+
+model MagicLink {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique @default(cuid())
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@map("magic_links")
 }
 
 model WearableConnection {

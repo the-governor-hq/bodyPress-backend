@@ -1,0 +1,421 @@
+{
+  "info": {
+    "_postman_id": "bp-backend-v1",
+    "name": "BodyPress Backend API",
+    "description": "Complete API collection for the BodyPress backend. Set the `base_url` variable to your local or production server.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:4000", "type": "string" },
+    { "key": "token",    "value": "",                       "type": "string",
+      "description": "JWT bearer token — populated automatically by the Verify Magic Link request" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/healthz", "host": ["{{base_url}}"], "path": ["healthz"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth (magic link)",
+      "item": [
+        {
+          "name": "1. Request Magic Link",
+          "event": [],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/v1/auth/request-link", "host": ["{{base_url}}"], "path": ["v1","auth","request-link"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"you@example.com\",\n  \"name\": \"Your Name\"\n}"
+            }
+          }
+        },
+        {
+          "name": "2. Verify Magic Link → saves token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) pm.collectionVariables.set('token', json.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/v1/auth/verify?token=PASTE_TOKEN_FROM_EMAIL_HERE",
+              "host": ["{{base_url}}"], "path": ["v1","auth","verify"],
+              "query": [{ "key": "token", "value": "PASTE_TOKEN_FROM_EMAIL_HERE" }]
+            }
+          }
+        },
+        {
+          "name": "3. Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/v1/auth/me", "host": ["{{base_url}}"], "path": ["v1","auth","me"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Subscribers (newsletter)",
+      "item": [
+        {
+          "name": "Subscribe (new user)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/v1/subscribers", "host": ["{{base_url}}"], "path": ["v1","subscribers"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"subscriber@example.com\",\n  \"name\": \"Jane Doe\",\n  \"timezone\": \"America/Toronto\",\n  \"goals\": [\"improve sleep\", \"reduce stress\"]\n}"
+            }
+          }
+        },
+        {
+          "name": "Subscribe (update existing)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/v1/subscribers", "host": ["{{base_url}}"], "path": ["v1","subscribers"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"subscriber@example.com\",\n  \"timezone\": \"Europe/Paris\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Unsubscribe",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/v1/subscribers?email=subscriber@example.com",
+              "host": ["{{base_url}}"], "path": ["v1","subscribers"],
+              "query": [{ "key": "email", "value": "subscriber@example.com" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Profile",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/v1/profile", "host": ["{{base_url}}"], "path": ["v1","profile"] }
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/v1/profile", "host": ["{{base_url}}"], "path": ["v1","profile"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jane Doe\",\n  \"timezone\": \"America/Toronto\",\n  \"goals\": [\"improve sleep\", \"reduce stress\"],\n  \"notifyAt\": \"07:30\",\n  \"newsletterOptIn\": true,\n  \"onboardingDone\": true\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "OAuth — Wearables",
+      "item": [
+        {
+          "name": "Garmin — Start OAuth",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/oauth/garmin/connect", "host": ["{{base_url}}"], "path": ["oauth","garmin","connect"] }
+          }
+        },
+        {
+          "name": "Garmin — OAuth Callback (simulated)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/oauth/garmin/callback?code=AUTH_CODE&state=STATE",
+              "host": ["{{base_url}}"], "path": ["oauth","garmin","callback"],
+              "query": [
+                { "key": "code",  "value": "AUTH_CODE" },
+                { "key": "state", "value": "STATE" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Garmin — Disconnect",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/oauth/garmin/disconnect", "host": ["{{base_url}}"], "path": ["oauth","garmin","disconnect"] }
+          }
+        },
+        {
+          "name": "Fitbit — Start OAuth",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/oauth/fitbit/connect", "host": ["{{base_url}}"], "path": ["oauth","fitbit","connect"] }
+          }
+        },
+        {
+          "name": "Fitbit — OAuth Callback (simulated)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/oauth/fitbit/callback?code=AUTH_CODE&state=STATE",
+              "host": ["{{base_url}}"], "path": ["oauth","fitbit","callback"],
+              "query": [
+                { "key": "code",  "value": "AUTH_CODE" },
+                { "key": "state", "value": "STATE" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Fitbit — Disconnect",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/oauth/fitbit/disconnect", "host": ["{{base_url}}"], "path": ["oauth","fitbit","disconnect"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wearables — Connections & Sync",
+      "item": [
+        {
+          "name": "List Connections + Health",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/v1/wearables/connections", "host": ["{{base_url}}"], "path": ["v1","wearables","connections"] }
+          }
+        },
+        {
+          "name": "Garmin — Trigger Backfill",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/v1/wearables/garmin/backfill", "host": ["{{base_url}}"], "path": ["v1","wearables","garmin","backfill"] },
+            "body": { "mode": "raw", "raw": "{\n  \"daysBack\": 60\n}" }
+          }
+        },
+        {
+          "name": "Garmin — Trigger Sync",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/v1/wearables/garmin/sync", "host": ["{{base_url}}"], "path": ["v1","wearables","garmin","sync"] },
+            "body": { "mode": "raw", "raw": "{\n  \"startDate\": \"2026-01-01\",\n  \"endDate\": \"2026-02-19\"\n}" }
+          }
+        },
+        {
+          "name": "Fitbit — Trigger Backfill",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/v1/wearables/fitbit/backfill", "host": ["{{base_url}}"], "path": ["v1","wearables","fitbit","backfill"] },
+            "body": { "mode": "raw", "raw": "{\n  \"daysBack\": 30\n}" }
+          }
+        },
+        {
+          "name": "Fitbit — Trigger Sync",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/v1/wearables/fitbit/sync", "host": ["{{base_url}}"], "path": ["v1","wearables","fitbit","sync"] },
+            "body": { "mode": "raw", "raw": "{}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wearables — Data Queries",
+      "item": [
+        {
+          "name": "Activities (last 30 days)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/v1/wearables/activities?limit=50",
+              "host": ["{{base_url}}"], "path": ["v1","wearables","activities"],
+              "query": [{ "key": "limit", "value": "50" }]
+            }
+          }
+        },
+        {
+          "name": "Activities (filtered by provider + date)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/v1/wearables/activities?provider=garmin&startDate=2026-02-01&endDate=2026-02-19&limit=20",
+              "host": ["{{base_url}}"], "path": ["v1","wearables","activities"],
+              "query": [
+                { "key": "provider",   "value": "garmin" },
+                { "key": "startDate",  "value": "2026-02-01" },
+                { "key": "endDate",    "value": "2026-02-19" },
+                { "key": "limit",      "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Sleep (last 14 nights)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/v1/wearables/sleep?limit=14",
+              "host": ["{{base_url}}"], "path": ["v1","wearables","sleep"],
+              "query": [{ "key": "limit", "value": "14" }]
+            }
+          }
+        },
+        {
+          "name": "Dailies (last 30 days)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/v1/wearables/dailies?limit=30",
+              "host": ["{{base_url}}"], "path": ["v1","wearables","dailies"],
+              "query": [{ "key": "limit", "value": "30" }]
+            }
+          }
+        },
+        {
+          "name": "Summary — 30 days",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/v1/wearables/summary?days=30",
+              "host": ["{{base_url}}"], "path": ["v1","wearables","summary"],
+              "query": [{ "key": "days", "value": "30" }]
+            }
+          }
+        },
+        {
+          "name": "Summary — 7 days, Garmin only",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/v1/wearables/summary?days=7&provider=garmin",
+              "host": ["{{base_url}}"], "path": ["v1","wearables","summary"],
+              "query": [
+                { "key": "days",     "value": "7" },
+                { "key": "provider", "value": "garmin" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Briefings",
+      "item": [
+        {
+          "name": "Preview Briefing",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/v1/briefings/preview", "host": ["{{base_url}}"], "path": ["v1","briefings","preview"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Summarize my health data for yesterday\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Webhooks",
+      "item": [
+        {
+          "name": "Garmin — Push (simulated payload)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",       "value": "application/json" },
+              { "key": "X-Garmin-Signature", "value": "HMAC_SIGNATURE_HERE" }
+            ],
+            "url": { "raw": "{{base_url}}/webhooks/garmin", "host": ["{{base_url}}"], "path": ["webhooks","garmin"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dailies\": [{ \"userId\": \"GARMIN_USER_ID\", \"summaryId\": \"abc123\" }],\n  \"sleeps\":  [{ \"userId\": \"GARMIN_USER_ID\", \"summaryId\": \"def456\" }]\n}"
+            }
+          }
+        },
+        {
+          "name": "Fitbit — Verify Subscriber (GET challenge)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/webhooks/fitbit?verify=YOUR_SUBSCRIBER_CODE",
+              "host": ["{{base_url}}"], "path": ["webhooks","fitbit"],
+              "query": [{ "key": "verify", "value": "YOUR_SUBSCRIBER_CODE" }]
+            }
+          }
+        },
+        {
+          "name": "Fitbit — Push (simulated payload)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",       "value": "application/json" },
+              { "key": "X-Fitbit-Signature", "value": "BASE64_HMAC_HERE" }
+            ],
+            "url": { "raw": "{{base_url}}/webhooks/fitbit", "host": ["{{base_url}}"], "path": ["webhooks","fitbit"] },
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"collectionType\": \"activities\",\n    \"date\": \"2026-02-19\",\n    \"ownerId\": \"FITBIT_USER_ID\",\n    \"ownerType\": \"user\",\n    \"subscriptionId\": \"mysubscription\"\n  }\n]"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

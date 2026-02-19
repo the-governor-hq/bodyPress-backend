@@ -1,0 +1,424 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-02-19T00:00:00.000Z",
+  "__export_source": "bodypress-backend",
+  "resources": [
+    {
+      "_id": "wrk_bodypress",
+      "_type": "workspace",
+      "name": "BodyPress Backend API",
+      "description": "Full API workspace for the BodyPress backend server",
+      "scope": "collection"
+    },
+    {
+      "_id": "env_local",
+      "_type": "environment",
+      "parentId": "wrk_bodypress",
+      "name": "Local (dev)",
+      "data": {
+        "base_url": "http://localhost:4000",
+        "token": ""
+      }
+    },
+    {
+      "_id": "env_production",
+      "_type": "environment",
+      "parentId": "wrk_bodypress",
+      "name": "Production",
+      "data": {
+        "base_url": "https://api.bodypress.app",
+        "token": ""
+      }
+    },
+    {
+      "_id": "fld_health",
+      "_type": "request_group",
+      "parentId": "wrk_bodypress",
+      "name": "Health",
+      "description": ""
+    },
+    {
+      "_id": "req_healthz",
+      "_type": "request",
+      "parentId": "fld_health",
+      "name": "Health Check",
+      "method": "GET",
+      "url": "{{ _.base_url }}/healthz",
+      "headers": [],
+      "body": {}
+    },
+    {
+      "_id": "fld_auth",
+      "_type": "request_group",
+      "parentId": "wrk_bodypress",
+      "name": "Auth (magic link)"
+    },
+    {
+      "_id": "req_request_link",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "1. Request Magic Link",
+      "method": "POST",
+      "url": "{{ _.base_url }}/v1/auth/request-link",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"you@example.com\",\n  \"name\": \"Your Name\"\n}"
+      }
+    },
+    {
+      "_id": "req_verify_link",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "2. Verify Magic Link",
+      "method": "GET",
+      "url": "{{ _.base_url }}/v1/auth/verify?token=PASTE_TOKEN_HERE",
+      "headers": [],
+      "body": {},
+      "description": "Paste the token from the email. The response contains a JWT — copy it to the 'token' env variable."
+    },
+    {
+      "_id": "req_me",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "3. Get Current User",
+      "method": "GET",
+      "url": "{{ _.base_url }}/v1/auth/me",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "fld_subscribers",
+      "_type": "request_group",
+      "parentId": "wrk_bodypress",
+      "name": "Subscribers (newsletter)"
+    },
+    {
+      "_id": "req_subscribe",
+      "_type": "request",
+      "parentId": "fld_subscribers",
+      "name": "Subscribe",
+      "method": "POST",
+      "url": "{{ _.base_url }}/v1/subscribers",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"subscriber@example.com\",\n  \"name\": \"Jane Doe\",\n  \"timezone\": \"America/Toronto\",\n  \"goals\": [\"improve sleep\", \"reduce stress\"]\n}"
+      }
+    },
+    {
+      "_id": "req_unsubscribe",
+      "_type": "request",
+      "parentId": "fld_subscribers",
+      "name": "Unsubscribe",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/v1/subscribers?email=subscriber@example.com",
+      "headers": [],
+      "body": {}
+    },
+    {
+      "_id": "fld_profile",
+      "_type": "request_group",
+      "parentId": "wrk_bodypress",
+      "name": "Profile"
+    },
+    {
+      "_id": "req_get_profile",
+      "_type": "request",
+      "parentId": "fld_profile",
+      "name": "Get Profile",
+      "method": "GET",
+      "url": "{{ _.base_url }}/v1/profile",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_patch_profile",
+      "_type": "request",
+      "parentId": "fld_profile",
+      "name": "Update Profile",
+      "method": "PATCH",
+      "url": "{{ _.base_url }}/v1/profile",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" },
+        { "name": "Content-Type",  "value": "application/json" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Jane Doe\",\n  \"timezone\": \"America/Toronto\",\n  \"goals\": [\"improve sleep\", \"reduce stress\"],\n  \"notifyAt\": \"07:30\",\n  \"newsletterOptIn\": true,\n  \"onboardingDone\": true\n}"
+      }
+    },
+    {
+      "_id": "fld_oauth",
+      "_type": "request_group",
+      "parentId": "wrk_bodypress",
+      "name": "OAuth — Wearables"
+    },
+    {
+      "_id": "req_garmin_connect",
+      "_type": "request",
+      "parentId": "fld_oauth",
+      "name": "Garmin — Start OAuth",
+      "method": "GET",
+      "url": "{{ _.base_url }}/oauth/garmin/connect",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {},
+      "description": "Redirects browser to Garmin OAuth. Open in browser, not Insomnia."
+    },
+    {
+      "_id": "req_garmin_callback",
+      "_type": "request",
+      "parentId": "fld_oauth",
+      "name": "Garmin — OAuth Callback (simulated)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/oauth/garmin/callback?code=AUTH_CODE&state=STATE",
+      "headers": [],
+      "body": {}
+    },
+    {
+      "_id": "req_garmin_disconnect",
+      "_type": "request",
+      "parentId": "fld_oauth",
+      "name": "Garmin — Disconnect",
+      "method": "POST",
+      "url": "{{ _.base_url }}/oauth/garmin/disconnect",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_fitbit_connect",
+      "_type": "request",
+      "parentId": "fld_oauth",
+      "name": "Fitbit — Start OAuth",
+      "method": "GET",
+      "url": "{{ _.base_url }}/oauth/fitbit/connect",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_fitbit_callback",
+      "_type": "request",
+      "parentId": "fld_oauth",
+      "name": "Fitbit — OAuth Callback (simulated)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/oauth/fitbit/callback?code=AUTH_CODE&state=STATE",
+      "headers": [],
+      "body": {}
+    },
+    {
+      "_id": "req_fitbit_disconnect",
+      "_type": "request",
+      "parentId": "fld_oauth",
+      "name": "Fitbit — Disconnect",
+      "method": "POST",
+      "url": "{{ _.base_url }}/oauth/fitbit/disconnect",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "fld_sync",
+      "_type": "request_group",
+      "parentId": "wrk_bodypress",
+      "name": "Wearables — Connections & Sync"
+    },
+    {
+      "_id": "req_connections",
+      "_type": "request",
+      "parentId": "fld_sync",
+      "name": "List Connections + Health",
+      "method": "GET",
+      "url": "{{ _.base_url }}/v1/wearables/connections",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_backfill_garmin",
+      "_type": "request",
+      "parentId": "fld_sync",
+      "name": "Garmin — Trigger Backfill",
+      "method": "POST",
+      "url": "{{ _.base_url }}/v1/wearables/garmin/backfill",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" },
+        { "name": "Content-Type",  "value": "application/json" }
+      ],
+      "body": { "mimeType": "application/json", "text": "{\n  \"daysBack\": 60\n}" }
+    },
+    {
+      "_id": "req_sync_garmin",
+      "_type": "request",
+      "parentId": "fld_sync",
+      "name": "Garmin — Trigger Sync",
+      "method": "POST",
+      "url": "{{ _.base_url }}/v1/wearables/garmin/sync",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" },
+        { "name": "Content-Type",  "value": "application/json" }
+      ],
+      "body": { "mimeType": "application/json", "text": "{\n  \"startDate\": \"2026-02-01\",\n  \"endDate\": \"2026-02-19\"\n}" }
+    },
+    {
+      "_id": "req_backfill_fitbit",
+      "_type": "request",
+      "parentId": "fld_sync",
+      "name": "Fitbit — Trigger Backfill",
+      "method": "POST",
+      "url": "{{ _.base_url }}/v1/wearables/fitbit/backfill",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" },
+        { "name": "Content-Type",  "value": "application/json" }
+      ],
+      "body": { "mimeType": "application/json", "text": "{\n  \"daysBack\": 30\n}" }
+    },
+    {
+      "_id": "req_sync_fitbit",
+      "_type": "request",
+      "parentId": "fld_sync",
+      "name": "Fitbit — Trigger Sync",
+      "method": "POST",
+      "url": "{{ _.base_url }}/v1/wearables/fitbit/sync",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" },
+        { "name": "Content-Type",  "value": "application/json" }
+      ],
+      "body": { "mimeType": "application/json", "text": "{}" }
+    },
+    {
+      "_id": "fld_data",
+      "_type": "request_group",
+      "parentId": "wrk_bodypress",
+      "name": "Wearables — Data Queries"
+    },
+    {
+      "_id": "req_activities",
+      "_type": "request",
+      "parentId": "fld_data",
+      "name": "Activities (last 50)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/v1/wearables/activities?limit=50",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_activities_filtered",
+      "_type": "request",
+      "parentId": "fld_data",
+      "name": "Activities (Garmin, Feb 2026)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/v1/wearables/activities?provider=garmin&startDate=2026-02-01&endDate=2026-02-19&limit=20",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_sleep",
+      "_type": "request",
+      "parentId": "fld_data",
+      "name": "Sleep (last 14 nights)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/v1/wearables/sleep?limit=14",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_dailies",
+      "_type": "request",
+      "parentId": "fld_data",
+      "name": "Dailies (last 30 days)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/v1/wearables/dailies?limit=30",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_summary_30",
+      "_type": "request",
+      "parentId": "fld_data",
+      "name": "Summary — 30 days",
+      "method": "GET",
+      "url": "{{ _.base_url }}/v1/wearables/summary?days=30",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_summary_7_garmin",
+      "_type": "request",
+      "parentId": "fld_data",
+      "name": "Summary — 7 days, Garmin only",
+      "method": "GET",
+      "url": "{{ _.base_url }}/v1/wearables/summary?days=7&provider=garmin",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "fld_briefings",
+      "_type": "request_group",
+      "parentId": "wrk_bodypress",
+      "name": "Briefings"
+    },
+    {
+      "_id": "req_briefing_preview",
+      "_type": "request",
+      "parentId": "fld_briefings",
+      "name": "Preview Briefing",
+      "method": "POST",
+      "url": "{{ _.base_url }}/v1/briefings/preview",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" },
+        { "name": "Content-Type",  "value": "application/json" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"message\": \"Summarize my health data for yesterday\"\n}"
+      }
+    },
+    {
+      "_id": "fld_webhooks",
+      "_type": "request_group",
+      "parentId": "wrk_bodypress",
+      "name": "Webhooks"
+    },
+    {
+      "_id": "req_webhook_garmin",
+      "_type": "request",
+      "parentId": "fld_webhooks",
+      "name": "Garmin — Push (simulated)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/webhooks/garmin",
+      "headers": [
+        { "name": "Content-Type",       "value": "application/json" },
+        { "name": "X-Garmin-Signature", "value": "HMAC_SIGNATURE_HERE" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"dailies\": [{ \"userId\": \"GARMIN_USER_ID\", \"summaryId\": \"abc123\" }],\n  \"sleeps\":  [{ \"userId\": \"GARMIN_USER_ID\", \"summaryId\": \"def456\" }]\n}"
+      }
+    },
+    {
+      "_id": "req_webhook_fitbit_verify",
+      "_type": "request",
+      "parentId": "fld_webhooks",
+      "name": "Fitbit — Verify Subscriber",
+      "method": "GET",
+      "url": "{{ _.base_url }}/webhooks/fitbit?verify=YOUR_SUBSCRIBER_CODE",
+      "headers": [],
+      "body": {}
+    },
+    {
+      "_id": "req_webhook_fitbit_push",
+      "_type": "request",
+      "parentId": "fld_webhooks",
+      "name": "Fitbit — Push (simulated)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/webhooks/fitbit",
+      "headers": [
+        { "name": "Content-Type",       "value": "application/json" },
+        { "name": "X-Fitbit-Signature", "value": "BASE64_HMAC_HERE" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "[\n  {\n    \"collectionType\": \"activities\",\n    \"date\": \"2026-02-19\",\n    \"ownerId\": \"FITBIT_USER_ID\",\n    \"ownerType\": \"user\",\n    \"subscriptionId\": \"mysubscription\"\n  }\n]"
+      }
+    }
+  ]
+}

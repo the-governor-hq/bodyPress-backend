@@ -10,14 +10,29 @@ const envSchema = z
     DATABASE_URL: z.string().min(1),
     JWT_SECRET: z.string().optional(),
     JWT_PUBLIC_KEY: z.string().optional(),
+    JWT_EXPIRES_IN: z.string().default("7d"),
     CORS_ORIGIN: z.string().default("*"),
+    FRONTEND_URL: z.string().url().default("http://localhost:3000"),
+
+    // Wearable providers
     GARMIN_CLIENT_ID: z.string().optional(),
     GARMIN_CLIENT_SECRET: z.string().optional(),
     GARMIN_REDIRECT_URI: z.string().url().optional(),
+    GARMIN_WEBHOOK_SECRET: z.string().optional(),
     FITBIT_CLIENT_ID: z.string().optional(),
     FITBIT_CLIENT_SECRET: z.string().optional(),
     FITBIT_REDIRECT_URI: z.string().url().optional(),
+    FITBIT_WEBHOOK_SUBSCRIBER_CODE: z.string().optional(),
+
+    // Background jobs
     SYNC_CRON: z.string().default("0 2 * * *"),
+
+    // Email
+    RESEND_API_KEY: z.string().optional(),
+    EMAIL_FROM: z.string().default("BodyPress <hello@bodypress.app>"),
+
+    // Magic link TTL (seconds)
+    MAGIC_LINK_TTL_SECONDS: z.coerce.number().int().positive().default(900), // 15 min
   })
   .superRefine((value, ctx) => {
     if (!value.JWT_SECRET && !value.JWT_PUBLIC_KEY) {
