@@ -23,7 +23,7 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.4.1",
     "@prisma/client": "^7.4.0",
-    "@the-governor-hq/constitution-core": "^3.3.4",
+    "@the-governor-hq/constitution-core": "^3.3.6",
     "@the-governor-hq/wearable-sdk": "^0.1.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -40,7 +40,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@the-governor-hq/constitution-wearables": "^3.3.5",
+    "@the-governor-hq/constitution-wearables": "^3.3.6",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.10",
