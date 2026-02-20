@@ -42,6 +42,46 @@ Node.js + Express 5 backend for BodyPress — Neon Postgres (Prisma 7), Garmin/F
    npm run dev:worker   # pg-boss background worker
    ```
 
+## Email configuration
+
+The service supports two email providers: **SMTP** (Ethereal.email for dev/testing) and **Resend** (for production).
+
+### Development: Ethereal.email (SMTP)
+
+For local development, use Ethereal.email — a fake SMTP service that captures emails for preview:
+
+1. Generate Ethereal credentials:
+
+   ```bash
+   npm run email:setup
+   ```
+
+   This will:
+   - Create a temporary Ethereal.email test account
+   - Append credentials to your `.env` file
+   - Display the web interface URL
+
+2. When emails are sent (e.g., magic links), check server logs for the preview URL:
+
+   ```
+   [email] Ethereal preview available: https://ethereal.email/message/...
+   ```
+
+3. Visit the URL to view the email without actual delivery.
+
+**Note:** Ethereal accounts are temporary. Re-run the script if credentials expire.
+
+### Production: Resend
+
+For production, use Resend:
+
+```bash
+# .env
+EMAIL_PROVIDER=resend
+RESEND_API_KEY=re_...
+EMAIL_FROM=BodyPress <hello@bodypress.app>
+```
+
 ## API reference
 
 ### Public

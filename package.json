@@ -14,6 +14,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:push": "prisma db push",
+    "email:setup": "tsx scripts/setup-ethereal.ts",
     "ai:context": "node ./node_modules/@the-governor-hq/constitution-wearables/dist/mcp-server.js"
   },
   "engines": {
@@ -29,6 +30,7 @@
     "express": "^5.1.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^8.0.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.18.0",
@@ -43,6 +45,7 @@
     "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.17.2",
+    "@types/nodemailer": "^7.0.10",
     "@types/passport-jwt": "^4.0.1",
     "@types/pg": "^8.16.0",
     "prisma": "^7.4.0",

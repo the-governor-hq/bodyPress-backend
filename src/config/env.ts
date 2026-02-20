@@ -27,8 +27,14 @@ const envSchema = z
     // Background jobs
     SYNC_CRON: z.string().default("0 2 * * *"),
 
-    // Email
+    // Email (SMTP or Resend)
+    EMAIL_PROVIDER: z.enum(["smtp", "resend"]).default("smtp"),
     RESEND_API_KEY: z.string().optional(),
+    SMTP_HOST: z.string().optional(),
+    SMTP_PORT: z.coerce.number().int().positive().optional(),
+    SMTP_USER: z.string().optional(),
+    SMTP_PASS: z.string().optional(),
+    SMTP_SECURE: z.coerce.boolean().default(false),
     EMAIL_FROM: z.string().default("BodyPress <hello@bodypress.app>"),
 
     // Magic link TTL (seconds)
