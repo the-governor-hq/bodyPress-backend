@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import passport from "passport";
-import { verify as jwtVerify } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
+const { verify: jwtVerify } = jwt;
 import { requireAuth } from "../auth/passport.js";
 import { prisma } from "../db/prisma.js";
 import { wearableSdk } from "../integrations/wearable-sdk.js";
