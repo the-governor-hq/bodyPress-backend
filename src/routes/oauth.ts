@@ -52,6 +52,7 @@ oauthRouter.get("/:provider/connect", requireAuthOrToken, async (req, res, next)
     }
 
     const { url } = wearableSdk.getAuthUrl(provider, userId);
+    logger.info({ provider, userId }, `OAuth connect initiated for ${provider}`);
     return res.redirect(url);
   } catch (error) {
     return next(error);
@@ -120,6 +121,8 @@ oauthRouter.get("/:provider/callback", async (req, res, next) => {
       daysBack: 60,
     });
 
+    logger.info({ provider, userId: result.userId, providerUserId: result.providerUserId }, `OAuth callback success for ${provider}`);
+
     // Redirect to frontend onboarding success or dashboard
     const redirectUrl = new URL("/onboarding", env.FRONTEND_URL);
     redirectUrl.searchParams.set("connected", provider);
@@ -157,6 +160,8 @@ oauthRouter.post("/:provider/disconnect", requireAuth, async (req, res, next) =>
         status: "disconnected",
       },
     });
+
+    logger.info({ provider, userId }, `OAuth disconnect success for ${provider}`);
 
     return res.status(200).json({
       message: `Disconnected ${provider}`,
