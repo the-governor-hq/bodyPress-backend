@@ -62,13 +62,17 @@ oauthRouter.get("/:provider/connect", requireAuthOrToken, async (req, res, next)
 oauthRouter.get("/:provider/callback", async (req, res, next) => {
   try {
     const provider = parseProvider(req.params.provider);
+    
+    logger.info({ provider, query: req.query }, `OAuth callback received for ${provider}`);
 
     if (!provider) {
+      logger.warn({ provider: req.params.provider }, "Unsupported provider in callback");
       return res.status(400).json({ error: "Unsupported provider" });
     }
 
     const parsedQuery = callbackQuerySchema.safeParse(req.query);
     if (!parsedQuery.success) {
+      logger.warn({ provider, query: req.query, errors: parsedQuery.error.flatten() }, "Invalid callback parameters");
       return res.status(400).json({
         error: "Invalid callback parameters",
         details: parsedQuery.error.flatten(),
@@ -77,6 +81,7 @@ oauthRouter.get("/:provider/callback", async (req, res, next) => {
 
     let result;
     try {
+      logger.info({ provider, hasCode: !!parsedQuery.data.code, hasState: !!parsedQuery.data.state }, `Calling handleCallback for ${provider}`);
       result = await wearableSdk.handleCallback(
         provider,
         parsedQuery.data.code,
@@ -89,7 +94,13 @@ oauthRouter.get("/:provider/callback", async (req, res, next) => {
       redirectUrl.searchParams.set("provider", provider);
       
       // Log the actual error for debugging
-      logger.error({ error, provider }, `OAuth callback failed for ${provider}`);
+      logger.error({
+        error,
+        provider,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+        errorName: error instanceof Error ? error.name : undefined,
+      }, `OAuth callback failed for ${provider}`);
       
       return res.redirect(redirectUrl.toString());
     }
