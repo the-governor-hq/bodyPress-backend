@@ -4,8 +4,8 @@ Node.js + Express 5 backend for BodyPress — Neon Postgres (Prisma 7), Garmin/F
 
 ## Features
 
-- **Subscriber flow** — `POST /v1/subscribers` creates/upserts a user and sends a welcome email
-- **Magic-link auth** — passwordless email login; 15-min expiring tokens stored in DB
+- **Subscriber flow** — `POST /v1/subscribers` sends verification email with magic link to confirm subscription
+- **Magic-link auth** — passwordless email login + subscription verification; 15-min expiring tokens stored in DB
 - **JWT sessions** — HS256 (dev) / RS256 (prod) tokens via Passport JWT
 - **OAuth wearable connect** — Garmin + Fitbit PKCE/OAuth2, token refresh, historical 60-day backfill on first connect
 - **Webhook ingestion** — HMAC-verified push endpoints for Garmin and Fitbit activity/sleep updates
@@ -89,10 +89,10 @@ EMAIL_FROM=BodyPress <hello@bodypress.app>
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/healthz` | Health check |
-| `POST` | `/v1/subscribers` | Subscribe email to newsletter |
+| `POST` | `/v1/subscribers` | Send subscription verification email with magic link |
 | `DELETE` | `/v1/subscribers` | Unsubscribe |
 | `POST` | `/v1/auth/request-link` | Send magic link to email |
-| `GET` | `/v1/auth/verify?token=` | Exchange magic link → JWT |
+| `GET` | `/v1/auth/verify?token=` | Exchange magic link → JWT + complete subscription |
 
 ### Auth required (`Authorization: Bearer <jwt>`)
 
@@ -125,22 +125,33 @@ EMAIL_FROM=BodyPress <hello@bodypress.app>
 
 ```
 1. User enters email → POST /v1/subscribers
-   └─ upserts User, sends welcome email via Resend
+   └─ creates/updates User (newsletterOptIn=false), generates MagicLink,
+      sends verification email with "Confirm Subscription" button
 
-2. POST /v1/auth/request-link (email)
-   └─ creates MagicLink (15-min TTL), sends email with link to FRONTEND_URL/auth/verify?token=...
+2. User clicks email link → GET /v1/auth/verify?token=
+   └─ validates token, sets newsletterOptIn=true + subscribedAt,
+      marks link as used, returns signed JWT
 
-3. User clicks link → GET /v1/auth/verify?token=
-   └─ validates DB token, marks used, returns signed JWT
-
-4. PATCH /v1/profile  (with JWT)
+3. PATCH /v1/profile (with JWT)
    └─ saves name, goals, timezone, onboardingDone=true
 
-5. GET /oauth/:provider/connect?auth_token=<jwt>
+4. GET /oauth/:provider/connect?auth_token=<jwt>
    └─ redirects to provider OAuth consent page
 
-6. Provider redirects to GET /oauth/:provider/callback
+5. Provider redirects to GET /oauth/:provider/callback
    └─ stores token, queues 60-day backfill, redirects to frontend
+
+---
+
+Alternative: Existing user login
+
+1. POST /v1/auth/request-link (email)
+   └─ creates MagicLink (15-min TTL), sends email with "Sign in" button
+
+2. User clicks link → GET /v1/auth/verify?token=
+   └─ validates DB token, marks used, returns signed JWT
+
+3. Continue with profile/OAuth steps above
 ```
 
 ## Historical + daily sync strategy

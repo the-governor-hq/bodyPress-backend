@@ -76,7 +76,7 @@
       "name": "Subscribers (newsletter)",
       "item": [
         {
-          "name": "Subscribe (new user)",
+          "name": "Subscribe (sends verification email)",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -84,19 +84,8 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"subscriber@example.com\",\n  \"name\": \"Jane Doe\",\n  \"timezone\": \"America/Toronto\",\n  \"goals\": [\"improve sleep\", \"reduce stress\"]\n}"
-            }
-          }
-        },
-        {
-          "name": "Subscribe (update existing)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{base_url}}/v1/subscribers", "host": ["{{base_url}}"], "path": ["v1","subscribers"] },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"subscriber@example.com\",\n  \"timezone\": \"Europe/Paris\"\n}"
-            }
+            },
+            "description": "Sends a verification email with magic link. User must click 'Confirm Subscription' to complete signup. Returns: { message: 'Check your email! We've sent you a link to confirm your subscription.' }"
           }
         },
         {

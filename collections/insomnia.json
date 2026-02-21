@@ -98,14 +98,15 @@
       "_id": "req_subscribe",
       "_type": "request",
       "parentId": "fld_subscribers",
-      "name": "Subscribe",
+      "name": "Subscribe (sends verification email)",
       "method": "POST",
       "url": "{{ _.base_url }}/v1/subscribers",
       "headers": [{ "name": "Content-Type", "value": "application/json" }],
       "body": {
         "mimeType": "application/json",
         "text": "{\n  \"email\": \"subscriber@example.com\",\n  \"name\": \"Jane Doe\",\n  \"timezone\": \"America/Toronto\",\n  \"goals\": [\"improve sleep\", \"reduce stress\"]\n}"
-      }
+      },
+      "description": "Sends a verification email with magic link. User must click the link to complete subscription."
     },
     {
       "_id": "req_unsubscribe",
