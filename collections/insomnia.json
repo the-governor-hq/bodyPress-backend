@@ -27,7 +27,7 @@
       "parentId": "wrk_bodypress",
       "name": "Production",
       "data": {
-        "base_url": "https://api.bodypress.app",
+        "base_url": "https://localhost:4000",
         "token": ""
       }
     },
