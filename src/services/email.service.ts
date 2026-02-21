@@ -170,6 +170,34 @@ export function buildMagicLinkEmail(name: string | null, magicUrl: string): Send
   `.trim();
 }
 
+export function buildSubscribeVerifyEmail(name: string | null, verifyUrl: string): SendEmailOptions["html"] {
+  const displayName = name ?? "there";
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width"/></head>
+<body style="font-family:system-ui,sans-serif;background:#0d0f1a;color:#f0f0f0;padding:32px;max-width:520px;margin:0 auto;">
+  <h1 style="color:#5ecfb2;font-size:24px;margin-bottom:8px;">BodyPress</h1>
+  <p style="margin-top:0;color:#a0a0b0;font-size:14px;">Your Body, Briefed Daily</p>
+  <hr style="border:none;border-top:1px solid #2a2d3a;margin:24px 0;" />
+  <p>Hey ${displayName} 👋</p>
+  <p>Thanks for subscribing! Click the button below to <strong>confirm your subscription</strong> and sign in to your account.</p>
+  <p>This link expires in <strong>15 minutes</strong> and can only be used once.</p>
+  <div style="margin:32px 0;text-align:center;">
+    <a href="${verifyUrl}"
+       style="background:#5ecfb2;color:#0d0f1a;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:16px;display:inline-block;">
+      Confirm Subscription
+    </a>
+  </div>
+  <p style="font-size:12px;color:#666;margin-top:32px;">
+    If you didn't request this, you can safely ignore this email.<br />
+    <a href="${verifyUrl}" style="color:#5ecfb2;word-break:break-all;">${verifyUrl}</a>
+  </p>
+</body>
+</html>
+  `.trim();
+}
+
 export function buildWelcomeEmail(name: string | null): SendEmailOptions["html"] {
   const displayName = name ?? "there";
   return `

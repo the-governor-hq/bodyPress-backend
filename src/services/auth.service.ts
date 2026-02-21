@@ -91,10 +91,23 @@ export async function verifyMagicLink(token: string): Promise<VerifyResult> {
     throw Object.assign(new Error("Magic link expired"), { code: "EXPIRED" });
   }
 
+  // Mark link as used
   await prisma.magicLink.update({
     where: { id: link.id },
     data: { usedAt: new Date() },
   });
+
+  // Complete subscription if not already opted in
+  if (!link.user.newsletterOptIn) {
+    await prisma.user.update({
+      where: { id: link.user.id },
+      data: {
+        newsletterOptIn: true,
+        subscribedAt: new Date(),
+      },
+    });
+    logger.info({ userId: link.user.id }, "Subscription confirmed via magic link");
+  }
 
   const jwt = signJwt(link.user.id, link.user.email);
   logger.info({ userId: link.user.id }, "Magic link verified — JWT issued");

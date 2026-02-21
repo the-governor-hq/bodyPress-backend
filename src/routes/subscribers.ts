@@ -23,12 +23,11 @@ subscribersRouter.post("/", subscribeLimiter, async (req, res, next) => {
       return res.status(400).json({ error: "Invalid body", details: parsed.error.flatten() });
     }
 
-    const result = await subscribe(parsed.data);
+    await subscribe(parsed.data);
 
-    return res.status(result.isNew ? 201 : 200).json({
-      message: result.isNew ? "Subscribed successfully" : "Subscription updated",
-      userId: result.userId,
-      email: result.email,
+    // Always return 200 with a clear message
+    return res.status(200).json({
+      message: "Check your email! We've sent you a link to confirm your subscription.",
     });
   } catch (error) {
     return next(error);

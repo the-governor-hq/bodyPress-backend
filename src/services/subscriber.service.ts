@@ -4,7 +4,7 @@
 import { prisma } from "../db/prisma.js";
 import {
   sendEmail,
-  buildWelcomeEmail,
+  buildSubscribeVerifyEmail,
 } from "./email.service.js";
 import { logger } from "../lib/logger.js";
 
@@ -15,61 +15,61 @@ export interface SubscribeInput {
   goals?: string[];
 }
 
-export interface SubscribeResult {
-  userId: string;
-  email: string;
-  isNew: boolean;
-}
-
-export async function subscribe(input: SubscribeInput): Promise<SubscribeResult> {
+export async function subscribe(input: SubscribeInput): Promise<void> {
   const email = input.email.toLowerCase().trim();
 
-  const existing = await prisma.user.findUnique({ where: { email } });
+  // Create or update user (but don't subscribe yet — that happens on magic link verify)
+  let user = await prisma.user.findUnique({ where: { email } });
 
-  let userId: string;
-  let isNew: boolean;
-
-  if (existing) {
-    userId = existing.id;
-    isNew = false;
-
-    // Update prefs if they changed
-    await prisma.user.update({
-      where: { id: existing.id },
-      data: {
-        name: input.name ?? existing.name,
-        timezone: input.timezone ?? existing.timezone,
-        goals: input.goals ?? existing.goals,
-        newsletterOptIn: true,
-        subscribedAt: existing.subscribedAt ?? new Date(),
-      },
-    });
-  } else {
-    const created = await prisma.user.create({
+  if (!user) {
+    user = await prisma.user.create({
       data: {
         email,
         name: input.name ?? null,
         timezone: input.timezone ?? "UTC",
         goals: input.goals ?? [],
-        newsletterOptIn: true,
-        subscribedAt: new Date(),
+        newsletterOptIn: false, // Will be set to true when they verify
       },
     });
-    userId = created.id;
-    isNew = true;
-
-    // Send welcome email (fire-and-forget — don't block subscription response)
-    sendEmail({
-      to: email,
-      subject: "Welcome to BodyPress 🎉",
-      html: buildWelcomeEmail(input.name ?? null),
-    }).catch((err) => {
-      logger.error({ err, email }, "Failed to send welcome email");
+    logger.info({ userId: user.id, email }, "User created via subscribe request");
+  } else {
+    // Update their preferences (but don't auto-subscribe — they need to verify)
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        name: input.name ?? user.name,
+        timezone: input.timezone ?? user.timezone,
+        goals: input.goals ?? user.goals,
+      },
     });
   }
 
-  logger.info({ userId, email, isNew }, "Subscriber upserted");
-  return { userId, email, isNew };
+  // Expire any existing active links
+  await prisma.magicLink.updateMany({
+    where: { userId: user.id, usedAt: null, expiresAt: { gt: new Date() } },
+    data: { expiresAt: new Date() },
+  });
+
+  // Generate magic link token
+  const crypto = await import("node:crypto");
+  const token = crypto.randomBytes(32).toString("hex");
+  const { env } = await import("../config/env.js");
+  const expiresAt = new Date(Date.now() + env.MAGIC_LINK_TTL_SECONDS * 1000);
+
+  await prisma.magicLink.create({
+    data: { userId: user.id, token, expiresAt },
+  });
+
+  const verifyUrl = `${env.FRONTEND_URL}/auth/verify?token=${token}`;
+
+  // Send verification email with clear CTA button
+  await sendEmail({
+    to: email,
+    subject: "Confirm your BodyPress subscription",
+    html: buildSubscribeVerifyEmail(input.name ?? null, verifyUrl),
+  });
+
+  logger.info({ userId: user.id, email }, "Subscription verification link sent");
 }
 
 export async function unsubscribe(email: string): Promise<void> {
