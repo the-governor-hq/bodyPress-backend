@@ -9,6 +9,7 @@ import { wearableSdk } from "../integrations/wearable-sdk.js";
 import { JOBS, getBoss } from "../jobs/queue.js";
 import { parseProvider } from "../lib/provider.js";
 import { env } from "../config/env.js";
+import { logger } from "../lib/logger.js";
 
 const callbackQuerySchema = z.object({
   code: z.string().min(1),
@@ -73,11 +74,24 @@ oauthRouter.get("/:provider/callback", async (req, res, next) => {
       });
     }
 
-    const result = await wearableSdk.handleCallback(
-      provider,
-      parsedQuery.data.code,
-      parsedQuery.data.state,
-    );
+    let result;
+    try {
+      result = await wearableSdk.handleCallback(
+        provider,
+        parsedQuery.data.code,
+        parsedQuery.data.state,
+      );
+    } catch (error) {
+      // Handle OAuth-specific errors with user-friendly redirects
+      const redirectUrl = new URL("/onboarding", env.FRONTEND_URL);
+      redirectUrl.searchParams.set("error", "connection_failed");
+      redirectUrl.searchParams.set("provider", provider);
+      
+      // Log the actual error for debugging
+      logger.error({ error, provider }, `OAuth callback failed for ${provider}`);
+      
+      return res.redirect(redirectUrl.toString());
+    }
 
     await prisma.wearableConnection.upsert({
       where: {
