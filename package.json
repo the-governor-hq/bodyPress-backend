@@ -24,7 +24,7 @@
     "@prisma/adapter-pg": "^7.4.1",
     "@prisma/client": "^7.4.0",
     "@the-governor-hq/constitution-core": "^3.3.6",
-    "@the-governor-hq/wearable-sdk": "^0.1.0",
+    "@the-governor-hq/wearable-sdk": "^0.1.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
