@@ -1,4 +1,5 @@
 import type PgBoss from "pg-boss";
+import cron from "node-cron";
 import { env } from "../config/env.js";
 import { prisma } from "../db/prisma.js";
 import { wearableSdk } from "../integrations/wearable-sdk.js";
@@ -125,13 +126,15 @@ export async function registerWearableJobs(boss: PgBoss) {
     );
   });
 
-  await boss.work(JOBS.DAILY_FANOUT, async () => {
+  // Schedule daily fanout using node-cron (in-memory, no DB state)
+  cron.schedule(env.SYNC_CRON, async () => {
     const connections = await prisma.wearableConnection.findMany({
       where: { status: "active" },
       select: { userId: true, provider: true },
     });
 
     if (!connections.length) {
+      logger.info("No active connections to sync");
       return;
     }
 
@@ -142,13 +145,8 @@ export async function registerWearableJobs(boss: PgBoss) {
       });
     }
 
-    logger.info({ count: connections.length }, "Scheduled sync jobs for active connections");
+    logger.info({ count: connections.length }, "Daily fanout: queued sync jobs for active connections");
   });
 
-  // Unschedule first to avoid foreign key constraint errors on restart
-  await boss.unschedule(JOBS.DAILY_FANOUT).catch(() => {
-    // Ignore error if schedule doesn't exist
-  });
-  await boss.schedule(JOBS.DAILY_FANOUT, env.SYNC_CRON, {});
-  logger.info({ cron: env.SYNC_CRON }, "Daily fanout schedule registered");
+  logger.info({ cron: env.SYNC_CRON }, "Daily fanout cron schedule registered");
 }

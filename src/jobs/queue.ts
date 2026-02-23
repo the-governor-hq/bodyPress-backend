@@ -7,7 +7,6 @@ let started = false;
 export const JOBS = {
   BACKFILL: "wearables.backfill",
   SYNC: "wearables.sync",
-  DAILY_FANOUT: "wearables.daily-fanout",
 } as const;
 
 export async function getBoss(): Promise<PgBoss> {
