@@ -93,9 +93,16 @@ generator client {
 - Release command (`npx prisma migrate deploy`) runs before new machines start.
 - App listens on `0.0.0.0` (Express default) — no extra config needed.
 
+## Development workflow
+
+- **NEVER run `npm run dev` or start the dev server.** Assume it's always running.
+- Make code changes, type-check with `npm run typecheck` if needed.
+- The dev server (tsx watch) auto-reloads on file changes.
+
 ## DO NOT
 - Downgrade Prisma.
 - Add `url` back to `schema.prisma` datasource.
 - Run `prisma generate` in Docker.
 - Import from `@prisma/client` directly (use the generated path).
 - Use `prisma/config`'s `env()` helper where `DATABASE_URL` may be absent.
+- Run `npm run dev` — assume it's already running.

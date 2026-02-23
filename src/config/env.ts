@@ -25,7 +25,7 @@ const envSchema = z
     FITBIT_WEBHOOK_SUBSCRIBER_CODE: z.string().optional(),
 
     // Background jobs
-    SYNC_CRON: z.string().default("0 2 * * *"),
+    SYNC_CRON: z.string().default("* * * * *"), // Every minute for dev (use "0 2 * * *" in prod)
 
     // Email (SMTP or Resend)
     EMAIL_PROVIDER: z.enum(["smtp", "resend"]).default("smtp"),
