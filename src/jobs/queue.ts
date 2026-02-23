@@ -103,11 +103,30 @@ export async function enqueueInitialSync(userId: string, provider: string) {
 
 /**
  * Enqueue a quick 2-day sync for a webhook push notification.
+ * Deduplicates: if a pending/processing sync already covers this user+provider,
+ * skip creating a duplicate to avoid redundant API calls & token refreshes.
  */
 export async function enqueueWebhookSync(userId: string, provider: string) {
   const now = new Date();
   const twoDaysAgo = new Date(now);
   twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+
+  // Deduplicate — skip if a recent pending/processing job already exists
+  const existing = await prisma.syncJob.findFirst({
+    where: {
+      userId,
+      provider,
+      status: { in: ["pending", "processing"] },
+    },
+  });
+
+  if (existing) {
+    logger.debug(
+      { userId, provider, existingJobId: existing.id },
+      "Webhook sync skipped — pending job already exists",
+    );
+    return;
+  }
 
   await enqueueJob({
     userId,
@@ -133,27 +152,34 @@ export interface ClaimedJob {
 
 /**
  * Claim up to BATCH_SIZE pending jobs atomically.
+ *
+ * Uses DISTINCT ON ("userId", "provider") so that at most ONE job per
+ * user+provider pair is claimed per batch.  This prevents concurrent token
+ * refreshes / duplicate API calls even across multiple server instances —
+ * the serialization lives in the DB, not in process memory.
  */
 export async function claimJobs(): Promise<ClaimedJob[]> {
-  const candidates = await prisma.syncJob.findMany({
-    where: {
-      status: "pending",
-      attempts: { lt: 3 },
-    },
-    orderBy: [{ priority: "desc" }, { createdAt: "asc" }],
-    take: BATCH_SIZE,
-    select: { id: true },
-  });
+  // Step 1 — pick the best candidate per user+provider
+  const candidates = await prisma.$queryRawUnsafe<{ id: string }[]>(
+    `SELECT DISTINCT ON ("userId", "provider") "id"
+     FROM "sync_jobs"
+     WHERE "status" = 'pending' AND "attempts" < 3
+     ORDER BY "userId", "provider", "priority" DESC, "createdAt" ASC
+     LIMIT $1`,
+    BATCH_SIZE,
+  );
 
   if (!candidates.length) return [];
 
   const ids = candidates.map((c) => c.id);
 
+  // Step 2 — atomically flip to "processing" (only if still pending)
   await prisma.syncJob.updateMany({
     where: { id: { in: ids }, status: "pending" },
     data: { status: "processing" },
   });
 
+  // Step 3 — return the claimed rows
   return prisma.syncJob.findMany({
     where: { id: { in: ids }, status: "processing" },
     select: {
