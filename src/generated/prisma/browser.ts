@@ -57,3 +57,8 @@ export type WearableSleep = Prisma.WearableSleepModel
  * 
  */
 export type WearableDaily = Prisma.WearableDailyModel
+/**
+ * Model SyncJob
+ * 
+ */
+export type SyncJob = Prisma.SyncJobModel

@@ -162,3 +162,27 @@ model WearableDaily {
   @@index([userId, provider, date])
   @@map("wearable_dailies")
 }
+
+// ---------------------------------------------------------------------------
+// Simple DB-based job queue — replaces PG Boss
+// ---------------------------------------------------------------------------
+model SyncJob {
+  id          String    @id @default(cuid())
+  userId      String
+  provider    String
+  jobType     String    // "sync" | "backfill"
+  startDate   String    // YYYY-MM-DD
+  endDate     String    // YYYY-MM-DD
+  status      String    @default("pending") // pending | processing | done | failed
+  priority    Int       @default(0) // higher = processed first
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(3)
+  lastError   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  processedAt DateTime?
+
+  @@index([status, priority])
+  @@index([userId, provider])
+  @@map("sync_jobs")
+}

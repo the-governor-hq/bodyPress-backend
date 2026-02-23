@@ -58,7 +58,8 @@ export const ModelName = {
   WearableRawIngest: 'WearableRawIngest',
   WearableActivity: 'WearableActivity',
   WearableSleep: 'WearableSleep',
-  WearableDaily: 'WearableDaily'
+  WearableDaily: 'WearableDaily',
+  SyncJob: 'SyncJob'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -221,6 +222,26 @@ export const WearableDailyScalarFieldEnum = {
 } as const
 
 export type WearableDailyScalarFieldEnum = (typeof WearableDailyScalarFieldEnum)[keyof typeof WearableDailyScalarFieldEnum]
+
+
+export const SyncJobScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  provider: 'provider',
+  jobType: 'jobType',
+  startDate: 'startDate',
+  endDate: 'endDate',
+  status: 'status',
+  priority: 'priority',
+  attempts: 'attempts',
+  maxAttempts: 'maxAttempts',
+  lastError: 'lastError',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  processedAt: 'processedAt'
+} as const
+
+export type SyncJobScalarFieldEnum = (typeof SyncJobScalarFieldEnum)[keyof typeof SyncJobScalarFieldEnum]
 
 
 export const SortOrder = {

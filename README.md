@@ -153,19 +153,27 @@ Alternative: Existing user login
 3. Continue with profile/OAuth steps above
 ```
 
-## Background jobs
+## How data sync works (for developers)
 
-pg-boss job workers run **in-process** with the main server (no separate worker needed):
+### Automatic (you don't call anything):
 
-- **Backfill** — fetches 60 days of historical data on first wearable OAuth connection
-- **Sync** — incremental sync (2-day overlap) for individual users, triggered by webhooks or manual requests
-- **Daily fanout** — scheduled via `SYNC_CRON` (default `0 2 * * *`), enqueues sync for all active connections
+1. **First connect** → 60 days of history fetched automatically after OAuth callback
+2. **Webhooks** → Provider pushes updates, we sync immediately  
+3. **Daily cron** → Every night (2am by default), sync all active connections
 
-All jobs store:
-- Raw provider payloads in `wearable_raw_ingests`
-- Normalized records in `wearable_activities`, `wearable_sleep`, `wearable_dailies`
+### Manual control (optional):
 
-Sync queries from `(lastSyncedAt - 2 days)` to today for late-arriving records and idempotent upserts.
+| Route | When to use |
+|-------|-------------|
+| `POST /v1/wearables/:provider/sync` | Force sync now for logged-in user |
+| `POST /v1/wearables/:provider/backfill` | Re-fetch historical data (custom `daysBack`) |
+
+### What gets stored:
+
+- Raw provider JSON → `wearable_raw_ingests` (for debugging)
+- Normalized data → `wearable_activities`, `wearable_sleep`, `wearable_dailies`
+
+**TL;DR:** Just send users through OAuth (`GET /oauth/:provider/connect`). Everything else is automatic.
 
 ## API collections
 

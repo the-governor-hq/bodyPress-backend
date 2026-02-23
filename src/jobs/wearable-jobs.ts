@@ -1,152 +1,123 @@
-import type PgBoss from "pg-boss";
+// ---------------------------------------------------------------------------
+// Wearable job processor — polls sync_jobs table, processes, marks done.
+// Scheduled via node-cron (no PG Boss).
+// ---------------------------------------------------------------------------
 import cron from "node-cron";
 import { env } from "../config/env.js";
-import { prisma } from "../db/prisma.js";
 import { wearableSdk } from "../integrations/wearable-sdk.js";
 import { parseProvider } from "../lib/provider.js";
 import { logger } from "../lib/logger.js";
-import { JOBS } from "./queue.js";
 import { saveSnapshot } from "../services/wearable-storage.service.js";
+import {
+  claimJobs,
+  markDone,
+  markFailed,
+  fanoutDailySync,
+  type ClaimedJob,
+} from "./queue.js";
 
-type BackfillJobData = {
-  userId: string;
-  provider: string;
-  daysBack?: number;
-};
+let processing = false;
 
-type SyncJobData = {
-  userId: string;
-  provider: string;
-  startDate?: string;
-  endDate?: string;
-};
-
-function getJobData<T>(job: { data?: unknown } | Array<{ data?: unknown }>): T {
-  if (Array.isArray(job)) {
-    return (job[0]?.data ?? {}) as T;
+async function processJob(job: ClaimedJob) {
+  const provider = parseProvider(job.provider);
+  if (!provider) {
+    await markFailed(job.id, `Unsupported provider: ${job.provider}`);
+    return;
   }
 
-  return (job.data ?? {}) as T;
-}
+  const [activities, sleep, dailies] = await Promise.all([
+    wearableSdk.getActivities(provider, {
+      userId: job.userId,
+      startDate: job.startDate,
+      endDate: job.endDate,
+    }),
+    wearableSdk.getSleep(provider, {
+      userId: job.userId,
+      startDate: job.startDate,
+      endDate: job.endDate,
+    }),
+    wearableSdk.getDailies(provider, {
+      userId: job.userId,
+      startDate: job.startDate,
+      endDate: job.endDate,
+    }),
+  ]);
 
-function formatDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
+  await saveSnapshot({ userId: job.userId, provider, activities, sleep, dailies });
 
-function defaultSyncWindow(lastSyncedAt?: Date | null) {
-  const end = new Date();
-  const start = new Date(lastSyncedAt ?? end);
-  start.setDate(start.getDate() - 2);
+  await markDone(job.id);
 
-  return {
-    startDate: formatDate(start),
-    endDate: formatDate(end),
-  };
-}
-
-export async function registerWearableJobs(boss: PgBoss) {
-  await boss.work(JOBS.BACKFILL, async (job) => {
-    const data = getJobData<BackfillJobData>(job);
-    const provider = parseProvider(data.provider);
-
-    if (!provider) {
-      throw new Error(`Unsupported provider in backfill job: ${data.provider}`);
-    }
-
-    const snapshot = await wearableSdk.backfill(provider, {
-      userId: data.userId,
-      daysBack: data.daysBack ?? 60,
-    });
-
-    await saveSnapshot({
-      userId: data.userId,
+  logger.info(
+    {
+      jobId: job.id,
+      userId: job.userId,
       provider,
-      activities: snapshot.activities,
-      sleep: snapshot.sleep,
-      dailies: snapshot.dailies,
-    });
+      type: job.jobType,
+      activities: activities.length,
+      sleep: sleep.length,
+      dailies: dailies.length,
+    },
+    "Job processed",
+  );
+}
 
-    logger.info({ userId: data.userId, provider }, "Backfill job completed");
-  });
+/**
+ * Main loop: claim a batch, process each, repeat until queue is empty.
+ * Guards against concurrent runs with the `processing` flag.
+ */
+async function processQueue() {
+  if (processing) return;
+  processing = true;
 
-  await boss.work(JOBS.SYNC, async (job) => {
-    const data = getJobData<SyncJobData>(job);
-    const provider = parseProvider(data.provider);
+  try {
+    let batch = await claimJobs();
 
-    if (!provider) {
-      throw new Error(`Unsupported provider in sync job: ${data.provider}`);
+    while (batch.length > 0) {
+      for (const job of batch) {
+        try {
+          await processJob(job);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          logger.error({ jobId: job.id, error: msg }, "Job failed");
+          await markFailed(job.id, msg);
+        }
+      }
+
+      // Fetch next batch
+      batch = await claimJobs();
     }
+  } finally {
+    processing = false;
+  }
+}
 
-    const connection = await prisma.wearableConnection.findUnique({
-      where: { userId_provider: { userId: data.userId, provider } },
-      select: { lastSyncedAt: true },
-    });
-
-    const range = {
-      ...(connection ? defaultSyncWindow(connection.lastSyncedAt) : defaultSyncWindow()),
-      ...(data.startDate ? { startDate: data.startDate } : {}),
-      ...(data.endDate ? { endDate: data.endDate } : {}),
-    };
-
-    const [activities, sleep, dailies] = await Promise.all([
-      wearableSdk.getActivities(provider, {
-        userId: data.userId,
-        startDate: range.startDate,
-        endDate: range.endDate,
-      }),
-      wearableSdk.getSleep(provider, {
-        userId: data.userId,
-        startDate: range.startDate,
-        endDate: range.endDate,
-      }),
-      wearableSdk.getDailies(provider, {
-        userId: data.userId,
-        startDate: range.startDate,
-        endDate: range.endDate,
-      }),
-    ]);
-
-    await saveSnapshot({
-      userId: data.userId,
-      provider,
-      activities,
-      sleep,
-      dailies,
-    });
-
-    logger.info(
-      {
-        userId: data.userId,
-        provider,
-        activities: activities.length,
-        sleep: sleep.length,
-        dailies: dailies.length,
-      },
-      "Daily sync job completed",
+/**
+ * Register cron schedules:
+ *   1. Process queue every minute (picks up webhook-triggered & backfill jobs)
+ *   2. Fanout daily sync for all active connections
+ */
+export function startJobScheduler() {
+  // Process queue every minute
+  cron.schedule("* * * * *", () => {
+    processQueue().catch((err) =>
+      logger.error({ error: err }, "Queue processor tick failed"),
     );
   });
 
-  // Schedule daily fanout using node-cron (in-memory, no DB state)
-  cron.schedule(env.SYNC_CRON, async () => {
-    const connections = await prisma.wearableConnection.findMany({
-      where: { status: "active" },
-      select: { userId: true, provider: true },
-    });
-
-    if (!connections.length) {
-      logger.info("No active connections to sync");
-      return;
-    }
-
-    for (const connection of connections) {
-      await boss.send(JOBS.SYNC, {
-        userId: connection.userId,
-        provider: connection.provider,
-      });
-    }
-
-    logger.info({ count: connections.length }, "Daily fanout: queued sync jobs for active connections");
+  // Fanout: create sync jobs for stale connections
+  cron.schedule(env.SYNC_CRON, () => {
+    fanoutDailySync().catch((err) =>
+      logger.error({ error: err }, "Daily fanout failed"),
+    );
   });
 
-  logger.info({ cron: env.SYNC_CRON }, "Daily fanout cron schedule registered");
+  // Also run once on startup
+  processQueue().catch((err) =>
+    logger.error({ error: err }, "Initial queue drain failed"),
+  );
+
+  logger.info(
+    { syncCron: env.SYNC_CRON },
+    "Job scheduler started (DB-based queue)",
+  );
 }

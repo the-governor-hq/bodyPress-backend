@@ -1,17 +1,15 @@
 import { createApp } from "./app.js";
 import { env } from "./config/env.js";
 import { prisma } from "./db/prisma.js";
-import { getBoss, stopBoss } from "./jobs/queue.js";
-import { registerWearableJobs } from "./jobs/wearable-jobs.js";
+import { startJobScheduler } from "./jobs/wearable-jobs.js";
 import { logger } from "./lib/logger.js";
 
 const app = createApp();
 
 async function bootstrap() {
   await prisma.$connect();
-  const boss = await getBoss();
-  await registerWearableJobs(boss);
-  logger.info("Job workers registered in main process");
+  startJobScheduler();
+  logger.info("DB-based job scheduler started");
 
   const server = app.listen(env.PORT, () => {
     logger.info({ port: env.PORT }, "BodyPress backend listening");
@@ -20,7 +18,6 @@ async function bootstrap() {
   async function shutdown(signal: string) {
     logger.info({ signal }, "Shutting down API server");
     server.close(async () => {
-      await stopBoss();
       await prisma.$disconnect();
       process.exit(0);
     });
@@ -32,7 +29,6 @@ async function bootstrap() {
 
 bootstrap().catch(async (error) => {
   logger.error({ error }, "Failed to start API server");
-  await stopBoss();
   await prisma.$disconnect();
   process.exit(1);
 });

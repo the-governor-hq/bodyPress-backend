@@ -6,7 +6,7 @@ const { verify: jwtVerify } = jwt;
 import { requireAuth } from "../auth/passport.js";
 import { prisma } from "../db/prisma.js";
 import { wearableSdk } from "../integrations/wearable-sdk.js";
-import { JOBS, getBoss } from "../jobs/queue.js";
+import { enqueueInitialSync } from "../jobs/queue.js";
 import { parseProvider } from "../lib/provider.js";
 import { env } from "../config/env.js";
 import { logger } from "../lib/logger.js";
@@ -125,12 +125,8 @@ oauthRouter.get("/:provider/callback", async (req, res, next) => {
       },
     });
 
-    const boss = await getBoss();
-    await boss.send(JOBS.BACKFILL, {
-      userId: result.userId,
-      provider,
-      daysBack: 60,
-    });
+    // Strategic sync: 2 days immediately, rest in background batches
+    await enqueueInitialSync(result.userId, provider);
 
     logger.info({ provider, userId: result.userId, providerUserId: result.providerUserId }, `OAuth callback success for ${provider}`);
 

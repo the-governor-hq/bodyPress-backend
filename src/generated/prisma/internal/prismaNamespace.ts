@@ -391,7 +391,8 @@ export const ModelName = {
   WearableRawIngest: 'WearableRawIngest',
   WearableActivity: 'WearableActivity',
   WearableSleep: 'WearableSleep',
-  WearableDaily: 'WearableDaily'
+  WearableDaily: 'WearableDaily',
+  SyncJob: 'SyncJob'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -407,7 +408,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "magicLink" | "wearableConnection" | "wearableToken" | "wearableRawIngest" | "wearableActivity" | "wearableSleep" | "wearableDaily"
+    modelProps: "user" | "magicLink" | "wearableConnection" | "wearableToken" | "wearableRawIngest" | "wearableActivity" | "wearableSleep" | "wearableDaily" | "syncJob"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1003,6 +1004,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    SyncJob: {
+      payload: Prisma.$SyncJobPayload<ExtArgs>
+      fields: Prisma.SyncJobFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.SyncJobFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SyncJobPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.SyncJobFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SyncJobPayload>
+        }
+        findFirst: {
+          args: Prisma.SyncJobFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SyncJobPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.SyncJobFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SyncJobPayload>
+        }
+        findMany: {
+          args: Prisma.SyncJobFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SyncJobPayload>[]
+        }
+        create: {
+          args: Prisma.SyncJobCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SyncJobPayload>
+        }
+        createMany: {
+          args: Prisma.SyncJobCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.SyncJobCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SyncJobPayload>[]
+        }
+        delete: {
+          args: Prisma.SyncJobDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SyncJobPayload>
+        }
+        update: {
+          args: Prisma.SyncJobUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SyncJobPayload>
+        }
+        deleteMany: {
+          args: Prisma.SyncJobDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.SyncJobUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.SyncJobUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SyncJobPayload>[]
+        }
+        upsert: {
+          args: Prisma.SyncJobUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SyncJobPayload>
+        }
+        aggregate: {
+          args: Prisma.SyncJobAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateSyncJob>
+        }
+        groupBy: {
+          args: Prisma.SyncJobGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SyncJobGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.SyncJobCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SyncJobCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -1186,6 +1261,26 @@ export const WearableDailyScalarFieldEnum = {
 } as const
 
 export type WearableDailyScalarFieldEnum = (typeof WearableDailyScalarFieldEnum)[keyof typeof WearableDailyScalarFieldEnum]
+
+
+export const SyncJobScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  provider: 'provider',
+  jobType: 'jobType',
+  startDate: 'startDate',
+  endDate: 'endDate',
+  status: 'status',
+  priority: 'priority',
+  attempts: 'attempts',
+  maxAttempts: 'maxAttempts',
+  lastError: 'lastError',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  processedAt: 'processedAt'
+} as const
+
+export type SyncJobScalarFieldEnum = (typeof SyncJobScalarFieldEnum)[keyof typeof SyncJobScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -1421,6 +1516,7 @@ export type GlobalOmitConfig = {
   wearableActivity?: Prisma.WearableActivityOmit
   wearableSleep?: Prisma.WearableSleepOmit
   wearableDaily?: Prisma.WearableDailyOmit
+  syncJob?: Prisma.SyncJobOmit
 }
 
 /* Types for Logging */
