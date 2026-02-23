@@ -6,10 +6,8 @@
   "description": "BodyPress API backend with wearables OAuth, Prisma, and background sync jobs",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "dev:worker": "tsx watch src/worker.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
-    "start:worker": "node dist/worker.js",
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",

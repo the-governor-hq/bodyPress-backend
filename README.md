@@ -35,11 +35,10 @@ Node.js + Express 5 backend for BodyPress — Neon Postgres (Prisma 7), Garmin/F
    npx prisma migrate dev --name init
    ```
 
-4. Run API and worker in separate terminals:
+4. Start the server (jobs run in-process):
 
    ```bash
-   npm run dev          # Express API on :4000
-   npm run dev:worker   # pg-boss background worker
+   npm run dev          # Express API + pg-boss workers on :4000
    ```
 
 ## Email configuration
@@ -154,19 +153,20 @@ Alternative: Existing user login
 3. Continue with profile/OAuth steps above
 ```
 
-## Historical + daily sync strategy
+## Background jobs
 
-- On OAuth callback, enqueue one `wearables.backfill` job (`daysBack=60`).
-- `SYNC_CRON` (default `0 2 * * *`) triggers daily fanout — one sync job per active connection.
-- Webhook pushes queue an immediate sync for the affected user.
+pg-boss job workers run **in-process** with the main server (no separate worker needed):
+
+- **Backfill** — fetches 60 days of historical data on first wearable OAuth connection
+- **Sync** — incremental sync (2-day overlap) for individual users, triggered by webhooks or manual requests
+- **Daily fanout** — scheduled via `SYNC_CRON` (default `0 2 * * *`), enqueues sync for all active connections
+
+All jobs store:
+- Raw provider payloads in `wearable_raw_ingests`
+- Normalized records in `wearable_activities`, `wearable_sleep`, `wearable_dailies`
+
+Sync queries from `(lastSyncedAt - 2 days)` to today for late-arriving records and idempotent upserts.
 
 ## API collections
 
 Import from `collections/` into Postman or Insomnia for a ready-to-use request suite.
-
-- Worker executes backfill, fetches activities/sleep/dailies, and stores:
-  - raw provider payloads in `wearable_raw_ingests`
-  - normalized records in `wearable_activities`, `wearable_sleep`, `wearable_dailies`
-- Worker schedules `wearables.daily-fanout` via `SYNC_CRON` (default `0 2 * * *`).
-- Daily fanout enqueues `wearables.sync` for each active connection.
-- Sync jobs query from `(lastSyncedAt - 2 days)` to today for late-arriving records and idempotent upserts.

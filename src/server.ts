@@ -2,13 +2,16 @@ import { createApp } from "./app.js";
 import { env } from "./config/env.js";
 import { prisma } from "./db/prisma.js";
 import { getBoss, stopBoss } from "./jobs/queue.js";
+import { registerWearableJobs } from "./jobs/wearable-jobs.js";
 import { logger } from "./lib/logger.js";
 
 const app = createApp();
 
 async function bootstrap() {
   await prisma.$connect();
-  await getBoss();
+  const boss = await getBoss();
+  await registerWearableJobs(boss);
+  logger.info("Job workers registered in main process");
 
   const server = app.listen(env.PORT, () => {
     logger.info({ port: env.PORT }, "BodyPress backend listening");

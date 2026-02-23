@@ -145,6 +145,10 @@ export async function registerWearableJobs(boss: PgBoss) {
     logger.info({ count: connections.length }, "Scheduled sync jobs for active connections");
   });
 
+  // Unschedule first to avoid foreign key constraint errors on restart
+  await boss.unschedule(JOBS.DAILY_FANOUT).catch(() => {
+    // Ignore error if schedule doesn't exist
+  });
   await boss.schedule(JOBS.DAILY_FANOUT, env.SYNC_CRON, {});
   logger.info({ cron: env.SYNC_CRON }, "Daily fanout schedule registered");
 }
