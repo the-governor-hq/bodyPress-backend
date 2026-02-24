@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
+import pino from "pino";
 import { pinoHttp } from "pino-http";
 import { validationErrorHandler } from "@the-governor-hq/constitution-core";
 import { initializeAuth, requireAuth } from "./auth/passport.js";
@@ -20,7 +21,31 @@ export function createApp() {
   const app = express();
 
   // ── Observability ──────────────────────────────────────────────────────────
-  app.use(pinoHttp({ logger }));
+  app.use(
+    pinoHttp({
+      logger,
+      // Strip noisy headers & response details from logs
+      serializers: {
+        req(req) {
+          return {
+            method: req.method,
+            url: req.url,
+            // Keep only useful headers
+            ...(req.headers?.origin && { origin: req.headers.origin }),
+            ...(req.headers?.["fly-region"] && { region: req.headers["fly-region"] }),
+          };
+        },
+        res(res) {
+          return { statusCode: res.statusCode };
+        },
+        err: pino.stdSerializers.err, // keep stack traces on errors
+      },
+      // Don't log healthz noise
+      autoLogging: {
+        ignore: (req) => req.url === "/healthz",
+      },
+    }),
+  );
 
   // ── Security ───────────────────────────────────────────────────────────────
   app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
