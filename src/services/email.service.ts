@@ -41,7 +41,7 @@ function getSmtpTransporter(): Transporter {
     });
 
     logger.info(
-      { host: env.SMTP_HOST, port: env.SMTP_PORT, secure: env.SMTP_SECURE },
+      { host: env.SMTP_HOST, port: env.SMTP_PORT, secure },
       "[email] SMTP transporter initialized",
     );
   }
