@@ -16,6 +16,44 @@ import {
   type ClaimedJob,
 } from "./queue.js";
 
+// ── Garmin 24-hour window chunking ────────────────────────────────────────
+// The Garmin Wellness API rejects requests where
+// uploadEndTimeInSeconds − uploadStartTimeInSeconds > 86 400 (24 h).
+// We split wider date ranges into 1-day chunks before calling the SDK.
+
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Split "YYYY-MM-DD" → "YYYY-MM-DD" into ≤ 24-hour windows.
+ * Each element is [startDate, endDate] both formatted as "YYYY-MM-DD".
+ */
+function chunkDateRange(
+  startDate: string,
+  endDate: string,
+): Array<[string, string]> {
+  const chunks: Array<[string, string]> = [];
+  let cursor = new Date(startDate);
+  const end = new Date(endDate);
+
+  while (cursor < end) {
+    const chunkEnd = new Date(cursor.getTime() + ONE_DAY_MS);
+    const effectiveEnd = chunkEnd > end ? end : chunkEnd;
+    chunks.push([fmt(cursor), fmt(effectiveEnd)]);
+    cursor = new Date(effectiveEnd);
+  }
+
+  // Edge case: startDate === endDate → single chunk
+  if (chunks.length === 0) {
+    chunks.push([startDate, endDate]);
+  }
+
+  return chunks;
+}
+
+function fmt(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
 let processing = false;
 
 async function processJob(job: ClaimedJob) {
@@ -25,25 +63,48 @@ async function processJob(job: ClaimedJob) {
     return;
   }
 
-  const [activities, sleep, dailies] = await Promise.all([
-    wearableSdk.getActivities(provider, {
-      userId: job.userId,
-      startDate: job.startDate,
-      endDate: job.endDate,
-    }),
-    wearableSdk.getSleep(provider, {
-      userId: job.userId,
-      startDate: job.startDate,
-      endDate: job.endDate,
-    }),
-    wearableSdk.getDailies(provider, {
-      userId: job.userId,
-      startDate: job.startDate,
-      endDate: job.endDate,
-    }),
-  ]);
+  // Garmin enforces a max 24-hour query window — chunk wider ranges.
+  // Other providers (Fitbit) handle their own limits internally.
+  const needsChunking = provider === "garmin";
+  const chunks = needsChunking
+    ? chunkDateRange(job.startDate, job.endDate)
+    : [[job.startDate, job.endDate] as [string, string]];
 
-  await saveSnapshot({ userId: job.userId, provider, activities, sleep, dailies });
+  const allActivities: Awaited<ReturnType<typeof wearableSdk.getActivities>>  = [];
+  const allSleep:      Awaited<ReturnType<typeof wearableSdk.getSleep>>       = [];
+  const allDailies:    Awaited<ReturnType<typeof wearableSdk.getDailies>>     = [];
+
+  for (const [start, end] of chunks) {
+    const [activities, sleep, dailies] = await Promise.all([
+      wearableSdk.getActivities(provider, {
+        userId: job.userId,
+        startDate: start,
+        endDate: end,
+      }),
+      wearableSdk.getSleep(provider, {
+        userId: job.userId,
+        startDate: start,
+        endDate: end,
+      }),
+      wearableSdk.getDailies(provider, {
+        userId: job.userId,
+        startDate: start,
+        endDate: end,
+      }),
+    ]);
+
+    allActivities.push(...activities);
+    allSleep.push(...sleep);
+    allDailies.push(...dailies);
+  }
+
+  await saveSnapshot({
+    userId: job.userId,
+    provider,
+    activities: allActivities,
+    sleep: allSleep,
+    dailies: allDailies,
+  });
 
   await markDone(job.id);
 
@@ -53,9 +114,10 @@ async function processJob(job: ClaimedJob) {
       userId: job.userId,
       provider,
       type: job.jobType,
-      activities: activities.length,
-      sleep: sleep.length,
-      dailies: dailies.length,
+      chunks: chunks.length,
+      activities: allActivities.length,
+      sleep: allSleep.length,
+      dailies: allDailies.length,
     },
     "Job processed",
   );
@@ -70,22 +132,23 @@ async function processQueue() {
   processing = true;
 
   try {
-    let batch = await claimJobs();
+    const batch = await claimJobs();
 
-    while (batch.length > 0) {
-      for (const job of batch) {
-        try {
-          await processJob(job);
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          logger.error({ jobId: job.id, error: msg }, "Job failed");
-          await markFailed(job.id, msg);
-        }
+    for (const job of batch) {
+      try {
+        await processJob(job);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.error(
+          { jobId: job.id, userId: job.userId, provider: job.provider, attempt: job.attempts + 1, error: msg },
+          "Job failed",
+        );
+        await markFailed(job.id, msg);
       }
-
-      // Fetch next batch
-      batch = await claimJobs();
     }
+    // NOTE: We intentionally process only ONE batch per tick.
+    // Failed-then-reset jobs need their backoff cooldown to elapse
+    // before being claimed again (see claimJobs).
   } finally {
     processing = false;
   }

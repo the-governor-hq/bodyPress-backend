@@ -157,13 +157,21 @@ export interface ClaimedJob {
  * user+provider pair is claimed per batch.  This prevents concurrent token
  * refreshes / duplicate API calls even across multiple server instances —
  * the serialization lives in the DB, not in process memory.
+ *
+ * Retry backoff: jobs with attempts > 0 are not claimed until
+ * (attempts × 5) minutes have elapsed since the last failure.
  */
 export async function claimJobs(): Promise<ClaimedJob[]> {
   // Step 1 — pick the best candidate per user+provider
+  //   Backoff: skip retried jobs whose cooldown hasn't elapsed.
+  //   Brand-new jobs (attempts = 0) are always eligible.
   const candidates = await prisma.$queryRawUnsafe<{ id: string }[]>(
     `SELECT DISTINCT ON ("userId", "provider") "id"
      FROM "sync_jobs"
-     WHERE "status" = 'pending' AND "attempts" < 3
+     WHERE "status" = 'pending'
+       AND "attempts" < 3
+       AND ("attempts" = 0
+            OR "updatedAt" < NOW() - ("attempts" * INTERVAL '5 minutes'))
      ORDER BY "userId", "provider", "priority" DESC, "createdAt" ASC
      LIMIT $1`,
     BATCH_SIZE,
@@ -226,6 +234,10 @@ export async function markFailed(jobId: string, error: string) {
 
 /**
  * Create sync jobs for every active connection not synced in 30 min.
+ *
+ * Deduplicates: skips connections that already have a pending or processing
+ * job — prevents flooding the queue when prior jobs are still retrying or
+ * the API keeps returning errors.
  */
 export async function fanoutDailySync() {
   const thirtyMinAgo = new Date(Date.now() - 30 * 60_000);
@@ -240,19 +252,38 @@ export async function fanoutDailySync() {
 
   if (!connections.length) return;
 
-  const now = new Date();
-  const jobs = connections.map((c) => {
-    const start = new Date(c.lastSyncedAt ?? now);
-    start.setDate(start.getDate() - 2);
-    return {
-      userId: c.userId,
-      provider: c.provider,
-      jobType: "sync" as const,
-      startDate: fmtDate(start),
-      endDate: fmtDate(now),
-      priority: 3,
-    };
+  // Deduplicate: find user+provider pairs that already have in-flight jobs
+  const inflight = await prisma.syncJob.findMany({
+    where: {
+      status: { in: ["pending", "processing"] },
+      userId: { in: connections.map((c) => c.userId) },
+    },
+    select: { userId: true, provider: true },
+    distinct: ["userId", "provider"],
   });
+
+  const inflightSet = new Set(inflight.map((j) => `${j.userId}::${j.provider}`));
+
+  const now = new Date();
+  const jobs = connections
+    .filter((c) => !inflightSet.has(`${c.userId}::${c.provider}`))
+    .map((c) => {
+      const start = new Date(c.lastSyncedAt ?? now);
+      start.setDate(start.getDate() - 2);
+      return {
+        userId: c.userId,
+        provider: c.provider,
+        jobType: "sync" as const,
+        startDate: fmtDate(start),
+        endDate: fmtDate(now),
+        priority: 3,
+      };
+    });
+
+  if (!jobs.length) {
+    logger.debug("Daily fanout: all connections already have in-flight jobs");
+    return;
+  }
 
   await prisma.syncJob.createMany({ data: jobs });
   logger.info({ count: jobs.length }, "Daily fanout: created sync jobs");
