@@ -18,14 +18,17 @@ import {
 
 // ── Garmin 24-hour window chunking ────────────────────────────────────────
 // The Garmin Wellness API rejects requests where
-// uploadEndTimeInSeconds − uploadStartTimeInSeconds > 86 400 (24 h).
-// We split wider date ranges into 1-day chunks before calling the SDK.
+// uploadEndTimeInSeconds − uploadStartTimeInSeconds ≥ 86 400 (24 h).
+// We split wider date ranges into < 24-hour chunks before calling the SDK.
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Split "YYYY-MM-DD" → "YYYY-MM-DD" into ≤ 24-hour windows.
- * Each element is [startDate, endDate] both formatted as "YYYY-MM-DD".
+ * Split a date range into chunks that are strictly < 24 hours each.
+ *
+ * Returns ISO-8601 timestamps (not bare dates) so the SDK preserves
+ * sub-day precision when converting to epoch seconds.  Each chunk's end
+ * is 1 s before the next chunk's start, keeping every window at 86 399 s.
  */
 function chunkDateRange(
   startDate: string,
@@ -36,22 +39,20 @@ function chunkDateRange(
   const end = new Date(endDate);
 
   while (cursor < end) {
-    const chunkEnd = new Date(cursor.getTime() + ONE_DAY_MS);
-    const effectiveEnd = chunkEnd > end ? end : chunkEnd;
-    chunks.push([fmt(cursor), fmt(effectiveEnd)]);
-    cursor = new Date(effectiveEnd);
+    const chunkEnd = new Date(
+      Math.min(cursor.getTime() + ONE_DAY_MS, end.getTime()),
+    );
+    // Subtract 1 s when the window would hit exactly 24 h
+    const delta = chunkEnd.getTime() - cursor.getTime();
+    const safeEnd =
+      delta >= ONE_DAY_MS ? new Date(chunkEnd.getTime() - 1_000) : chunkEnd;
+
+    chunks.push([cursor.toISOString(), safeEnd.toISOString()]);
+    cursor = chunkEnd; // next chunk starts at the un-adjusted boundary
   }
 
-  // Edge case: startDate === endDate → single chunk
-  if (chunks.length === 0) {
-    chunks.push([startDate, endDate]);
-  }
-
+  // startDate === endDate → zero-width window → nothing to query
   return chunks;
-}
-
-function fmt(d: Date): string {
-  return d.toISOString().slice(0, 10);
 }
 
 let processing = false;
