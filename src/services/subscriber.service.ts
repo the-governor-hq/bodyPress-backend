@@ -63,13 +63,18 @@ export async function subscribe(input: SubscribeInput): Promise<void> {
   const verifyUrl = `${env.FRONTEND_URL}/auth/verify?token=${token}`;
 
   // Send verification email with clear CTA button
-  await sendEmail({
-    to: email,
-    subject: "Confirm your BodyPress subscription",
-    html: buildSubscribeVerifyEmail(input.name ?? null, verifyUrl),
-  });
-
-  logger.info({ userId: user.id, email }, "Subscription verification link sent");
+  try {
+    await sendEmail({
+      to: email,
+      subject: "Confirm your BodyPress subscription",
+      html: buildSubscribeVerifyEmail(input.name ?? null, verifyUrl),
+    });
+    logger.info({ userId: user.id, email }, "Subscription verification link sent");
+  } catch (err) {
+    // Log but don't crash — user/magic-link were already created.
+    // They can request a new link later.
+    logger.error({ err, userId: user.id, email }, "Failed to send verification email");
+  }
 }
 
 export async function unsubscribe(email: string): Promise<void> {

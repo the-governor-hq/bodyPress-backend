@@ -26,10 +26,14 @@ function getSmtpTransporter(): Transporter {
       throw new Error("SMTP configuration incomplete");
     }
 
+    // Port 465 requires implicit TLS (secure: true).
+    // Auto-detect when SMTP_SECURE is not explicitly set.
+    const secure = env.SMTP_SECURE || env.SMTP_PORT === 465;
+
     smtpTransporter = nodemailer.createTransport({
       host: env.SMTP_HOST,
       port: env.SMTP_PORT,
-      secure: env.SMTP_SECURE,
+      secure,
       auth: {
         user: env.SMTP_USER,
         pass: env.SMTP_PASS,
