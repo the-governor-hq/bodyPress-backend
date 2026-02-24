@@ -1,6 +1,6 @@
 # bodypress-backend
 
-Node.js + Express 5 backend for BodyPress — Neon Postgres (Prisma 7), Garmin/Fitbit OAuth via `@the-governor-hq/wearable-sdk`, background sync jobs via `pg-boss`, passwordless magic-link auth, and newsletter subscription management.
+Node.js 22 + Express 5 backend for BodyPress — Neon Postgres (Prisma 7 with driver adapter), Garmin/Fitbit OAuth via `@the-governor-hq/wearable-sdk`, DB-based background sync jobs via `node-cron`, passwordless magic-link auth, and newsletter subscription management.
 
 ## Features
 
@@ -8,38 +8,39 @@ Node.js + Express 5 backend for BodyPress — Neon Postgres (Prisma 7), Garmin/F
 - **Magic-link auth** — passwordless email login + subscription verification; 15-min expiring tokens stored in DB
 - **JWT sessions** — HS256 (dev) / RS256 (prod) tokens via Passport JWT
 - **OAuth wearable connect** — Garmin + Fitbit PKCE/OAuth2, token refresh, historical 60-day backfill on first connect
-- **Webhook ingestion** — HMAC-verified push endpoints for Garmin and Fitbit activity/sleep updates
+- **Webhook ingestion** — HMAC-verified push endpoints; Garmin push data is normalized and stored directly (no pull API needed), with pull-based fallback sync
 - **Profile management** — name, timezone, goals, notify time, onboarding completion flag
 - **Wearable data API** — paginated activities, sleep, dailies, and aggregated summary
-- **Background jobs** — pg-boss queue: backfill (initial), sync (per-user), daily-fanout (cron)
+- **Background jobs** — DB-based `sync_jobs` queue polled by `node-cron`: backfill (initial), sync (per-user), daily-fanout
 - **Rate limiting** — in-memory sliding window: 100 req/min global, 10/15min auth, 5/10min subscribe
 - **Constitution middleware** — briefing safety validation
+- **Fly.io ready** — Dockerfile, release command (`prisma migrate deploy`), no in-Docker codegen
 
 ## Quick start
 
-1. Copy env file and fill in secrets:
+```bash
+# 1. Clone & install
+npm install
 
-   ```bash
-   cp .env.example .env
-   ```
+# 2. Environment — copy and fill in secrets
+cp .env.example .env
+#    Required: DATABASE_URL, JWT_SECRET
+#    Wearables: GARMIN_CLIENT_ID/SECRET/REDIRECT_URI (and/or FITBIT)
 
-2. Install dependencies:
+# 3. Generate Prisma client (committed to git, but needed after fresh clone)
+npx prisma generate
 
-   ```bash
-   npm install
-   ```
+# 4. Create / migrate database
+npx prisma migrate dev
 
-3. Migrate database:
+# 5. (Optional) Set up a dev email inbox
+npm run email:setup        # creates Ethereal SMTP creds → appends to .env
 
-   ```bash
-   npx prisma migrate dev --name init
-   ```
+# 6. Start dev server (auto-reloads, background jobs run in-process)
+npm run dev                # Express API + sync scheduler on :4000
+```
 
-4. Start the server (jobs run in-process):
-
-   ```bash
-   npm run dev          # Express API + pg-boss workers on :4000
-   ```
+> **Note:** The dev server uses `tsx watch` — do **not** restart it manually after code changes.
 
 ## Email configuration
 
@@ -116,9 +117,9 @@ EMAIL_FROM=BodyPress <hello@bodypress.app>
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/webhooks/garmin` | Garmin activity push |
+| `POST` | `/webhooks/garmin` | Garmin push — normalizes & stores data directly, enqueues pull fallback |
 | `GET` | `/webhooks/fitbit` | Fitbit subscriber verification |
-| `POST` | `/webhooks/fitbit` | Fitbit activity push |
+| `POST` | `/webhooks/fitbit` | Fitbit push — enqueues pull-based sync |
 
 ## User + subscription flow
 
@@ -157,9 +158,10 @@ Alternative: Existing user login
 
 ### Automatic (you don't call anything):
 
-1. **First connect** → 60 days of history fetched automatically after OAuth callback
-2. **Webhooks** → Provider pushes updates, we sync immediately  
-3. **Daily cron** → Every night (2am by default), sync all active connections
+1. **First connect** → 60 days of history fetched automatically after OAuth callback (strategic backfill: 2-day high priority → 7-day medium → 7-day low)
+2. **Garmin webhooks** → Push payloads contain **full summary data** — normalized & stored immediately, no pull API required. A fallback pull job is still enqueued for completeness.
+3. **Fitbit webhooks** → Push notification triggers a pull-based sync job
+4. **Scheduled fanout** → Cron (`SYNC_CRON`, default every minute in dev / `0 2 * * *` in prod) syncs stale connections (>30 min since last sync)
 
 ### Manual control (optional):
 
@@ -170,8 +172,20 @@ Alternative: Existing user login
 
 ### What gets stored:
 
-- Raw provider JSON → `wearable_raw_ingests` (for debugging)
+- Raw provider JSON → `wearable_raw_ingests` (for debugging & reprocessing)
 - Normalized data → `wearable_activities`, `wearable_sleep`, `wearable_dailies`
+
+### Garmin portal setup (push endpoints):
+
+In the [Garmin Connect Developer Program](https://developerportal.garmin.com/) → **Endpoint Configuration**, set your webhook URL and enable:
+
+| Endpoint | URL |
+|----------|-----|
+| ACTIVITY - Activities | `https://<your-app>.fly.dev/webhooks/garmin` |
+| HEALTH - Dailies | `https://<your-app>.fly.dev/webhooks/garmin` |
+| HEALTH - Sleep | `https://<your-app>.fly.dev/webhooks/garmin` |
+
+All three point to the same handler — it discriminates by payload key.
 
 **TL;DR:** Just send users through OAuth (`GET /oauth/:provider/connect`). Everything else is automatic.
 
