@@ -79,7 +79,7 @@ For production, use Resend:
 # .env
 EMAIL_PROVIDER=resend
 RESEND_API_KEY=re_...
-EMAIL_FROM=BodyPress <hello@bodypress.app>
+SMTP_EMAIL_FROM=BodyPress <hello@governor-hq.com>
 ```
 
 ## API reference

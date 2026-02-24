@@ -51,7 +51,7 @@ function getSmtpTransporter(): Transporter {
 async function sendViaSMTP(opts: SendEmailOptions): Promise<{ messageId: string }> {
   const transporter = getSmtpTransporter();
   const info = await transporter.sendMail({
-    from: opts.from ?? env.EMAIL_FROM,
+    from: opts.from ?? env.SMTP_EMAIL_FROM,
     to: opts.to,
     subject: opts.subject,
     html: opts.html,
@@ -82,7 +82,7 @@ async function sendViaResend(opts: SendEmailOptions): Promise<{ id: string }> {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: opts.from ?? env.EMAIL_FROM,
+      from: opts.from ?? env.SMTP_EMAIL_FROM,
       to: opts.to,
       subject: opts.subject,
       html: opts.html,
@@ -211,7 +211,7 @@ export function buildWelcomeEmail(name: string | null): SendEmailOptions["html"]
   <h3 style="color:#5ecfb2;">Next step</h3>
   <p>Connect your Garmin or Fitbit device to start syncing your health data.</p>
   <p style="margin-top:32px;font-size:12px;color:#666;">
-    You're receiving this because you signed up at bodypress.app.<br />
+    You're receiving this because you signed up at governor-hq.com.<br />
     <a href="{{unsubscribeUrl}}" style="color:#5ecfb2;">Unsubscribe</a>
   </p>
 </body>

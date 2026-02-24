@@ -35,7 +35,7 @@ const envSchema = z
     SMTP_USER: z.string().optional(),
     SMTP_PASS: z.string().optional(),
     SMTP_SECURE: z.coerce.boolean().default(false),
-    EMAIL_FROM: z.string().default("BodyPress <hello@bodypress.app>"),
+    SMTP_EMAIL_FROM: z.string().default("BodyPress <hello@governor-hq.com>"),
 
     // Magic link TTL (seconds)
     MAGIC_LINK_TTL_SECONDS: z.coerce.number().int().positive().default(900), // 15 min
