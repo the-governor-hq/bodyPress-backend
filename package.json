@@ -6,6 +6,7 @@
   "description": "BodyPress API backend with wearables OAuth, Prisma, and background sync jobs",
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "prebuild": "node -e \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true})\"",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
